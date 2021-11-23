@@ -213,7 +213,7 @@ function payplus_remoteinput($params)
         'email' => $params['clientdetails']['email'],
     ];
     $paymentPage->SetCustomer($customer);
-    $userID = openssl_encrypt($clientDetails['id'], ENCRYPTION_ALGORITHM, PASSPHRASE);
+    $userID = openssl_encrypt($clientDetails['userid'], ENCRYPTION_ALGORITHM, PASSPHRASE);
     $paymentPage->more_info = base64_encode($userID);
     $get = [];
     $paymentPage->refURL_success = $params['systemurl'] . 'modules/gateways/payplus/return.php';

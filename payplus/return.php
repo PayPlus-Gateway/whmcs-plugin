@@ -10,9 +10,10 @@ require_once "vendor/autoload.php";
 
 $loggedUserID = null;
 $userDetails = getclientsdetails();
-if (isset($userDetails['model']) && count($userDetails['model']->getUserIds()) > 0) {
-    $loggedUserID = $userDetails['model']->getUserIds()[0];
+if ($userDetails['userid']) {
+    $loggedUserID = $userDetails['userid'];
 }
+
 define('IS_ADMIN_AREA', $_REQUEST['adminarea'] === '1');
 $authenticatedAdmin = \WHMCS\User\Admin::getAuthenticatedUser();
 
@@ -30,7 +31,6 @@ $requestedUserID = null;
 if ($_REQUEST['more_info']) {
     $requestedUserID = openssl_decrypt(base64_decode($_REQUEST['more_info']), ENCRYPTION_ALGORITHM, PASSPHRASE);
 }
-
 $fourDigits = $_REQUEST['four_digits'];
 $expiryDate = $_REQUEST['expiry_month'] . $_REQUEST['expiry_year'];
 $invoiceID = $_REQUEST['invoiceid'];
