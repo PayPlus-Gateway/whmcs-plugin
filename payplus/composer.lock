@@ -1,0 +1,56 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "bcd7c99ad2fce8ebc517f5f8f10c2269",
+    "packages": [
+        {
+            "name": "payplus-gateway/payplus-api",
+            "version": "1.0.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ZevWisegroup/payplus-api.git",
+                "reference": "70e4f8e0fbbee2891878fe07cbb20a1291d14c84"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ZevWisegroup/payplus-api/zipball/70e4f8e0fbbee2891878fe07cbb20a1291d14c84",
+                "reference": "70e4f8e0fbbee2891878fe07cbb20a1291d14c84",
+                "shasum": ""
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "PayplusGateway\\PayplusApi\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "OSL-3.0",
+                "AFL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "Zev work",
+                    "email": "zev@wittix.com"
+                }
+            ],
+            "support": {
+                "issues": "https://github.com/ZevWisegroup/payplus-api/issues",
+                "source": "https://github.com/ZevWisegroup/payplus-api/tree/1.0.4"
+            },
+            "time": "2021-11-18T11:06:19+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.1.0"
+}

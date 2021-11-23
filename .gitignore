@@ -1,0 +1,7 @@
+*
+!*/
+!/payplus.php
+!/callback/payplus.php
+!/payplus/**
+!/payplus/init.php
+!.gitignore

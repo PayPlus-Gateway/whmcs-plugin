@@ -1,0 +1,46 @@
+{
+    "packages": [
+        {
+            "name": "payplus-gateway/payplus-api",
+            "version": "1.0.4",
+            "version_normalized": "1.0.4.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ZevWisegroup/payplus-api.git",
+                "reference": "70e4f8e0fbbee2891878fe07cbb20a1291d14c84"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ZevWisegroup/payplus-api/zipball/70e4f8e0fbbee2891878fe07cbb20a1291d14c84",
+                "reference": "70e4f8e0fbbee2891878fe07cbb20a1291d14c84",
+                "shasum": ""
+            },
+            "time": "2021-11-18T11:06:19+00:00",
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "PayplusGateway\\PayplusApi\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "OSL-3.0",
+                "AFL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "Zev work",
+                    "email": "zev@wittix.com"
+                }
+            ],
+            "support": {
+                "issues": "https://github.com/ZevWisegroup/payplus-api/issues",
+                "source": "https://github.com/ZevWisegroup/payplus-api/tree/1.0.4"
+            },
+            "install-path": "../payplus-gateway/payplus-api"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}

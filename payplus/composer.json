@@ -1,0 +1,5 @@
+{
+    "require": {
+        "payplus-gateway/payplus-api": "^1.0"
+    }
+}

@@ -1,0 +1,22 @@
+{
+    "name": "payplus-gateway/payplus-api",
+    "type": "library",
+    "version": "1.0.4",
+    "license": [
+        "OSL-3.0",
+        "AFL-3.0"
+    ],
+    "autoload": {
+        "psr-4": {
+            "PayplusGateway\\PayplusApi\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Zev work",
+            "email": "zev@wittix.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}
