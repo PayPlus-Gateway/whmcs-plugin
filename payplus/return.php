@@ -9,11 +9,15 @@ require_once __DIR__ . '/../../../includes/adminfunctions.php';
 require_once "vendor/autoload.php";
 
 $loggedUserID = null;
-$userDetails = getclientsdetails();
-if ($userDetails['userid']) {
-    $loggedUserID = $userDetails['userid'];
+try {
+    $userDetails = getclientsdetails();
+} catch (\Exception $th) {
+    $userDetails = null;
 }
 
+if ($userDetails && $userDetails['userid']) {
+    $loggedUserID = $userDetails['userid'];
+}
 define('IS_ADMIN_AREA', $_REQUEST['adminarea'] === '1');
 $authenticatedAdmin = \WHMCS\User\Admin::getAuthenticatedUser();
 
