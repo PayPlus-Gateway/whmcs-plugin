@@ -86,7 +86,8 @@ if (
 }
 
 if (IS_ADMIN_AREA === true) {
-    redirSystemURL(['userid' => $requestedUserID], "/admin/clientssummary.php");
+    $adminPrefix = ($customadminpath) ? $customadminpath:'/admin';
+    redirSystemURL(['userid' => $requestedUserID], $adminPrefix."/clientssummary.php");
 }
 if ($invoiceID) {
     redirSystemURL('', "/invoice/" . $invoiceID . "/pay");
