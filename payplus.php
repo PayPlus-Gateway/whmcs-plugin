@@ -229,8 +229,6 @@ function payplus_remoteinput($params)
     $paymentPage->charge_method = ChargeMethods::TOKEN;
     $paymentPage->create_token = true;
 
-    $paymentPage->hide_identification_id = true;
-
     if ($paymentPage->Go()->IsSuccess()) {
         return '
         <script>
