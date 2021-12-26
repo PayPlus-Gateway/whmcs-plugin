@@ -10,6 +10,7 @@ abstract class PayplusBase {
     public static $devMode = false;
     protected $errors = [];
     protected $actionPerformed = false;
+    public $payload;
 
     public function __construct()
     {
@@ -19,12 +20,12 @@ abstract class PayplusBase {
     }
     public function Go() {
         $this->actionPerformed = true;
-        $payload = $this->createPayload();
+        $this->payload = $this->createPayload();
         $this->validate();
         if (!empty($this->errors)) {
             return $this;
         }
-        $this->Response = $this->makeRequest($payload);
+        $this->Response = $this->makeRequest($this->payload);
         
         if ($this->Response->success == 1) {
             $this->successfulResponse($this->Response);
