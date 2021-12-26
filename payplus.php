@@ -174,9 +174,16 @@ function payplus_capture($params)
             'quantity' => $item->getQuantity()
         ]);
     }
+
     $customer = [
-        'customer_name' => $params['clientdetails']['fullname'],
+        'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
+        'full_name' => $params['clientdetails']['fullname'],
         'email' => $params['clientdetails']['email'],
+        'vat_number' => $params['clientdetails']['tax_id'],
+        'phone' => $params['clientdetails']['phonenumber'],
+        'country_ISO' => $params['clientdetails']['countrycode'],
+        'city' => $params['clientdetails']['city'],
+        'address' => $params['clientdetails']['address1'],
     ];
     $paymentPage->SetCustomer($customer);
     $paymentPage->charge_method = ChargeMethods::CHARGE;

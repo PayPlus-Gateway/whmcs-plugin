@@ -48,6 +48,7 @@ abstract class PayplusBase {
     }
 
     protected function makeRequest($payload = null) {
+        
         $commandAndMethod = $this->GetCommandAndMethod();
         $authorization = [
             'api_key'=>self::$apiKey,
