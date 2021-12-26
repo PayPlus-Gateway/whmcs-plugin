@@ -94,6 +94,13 @@ function payplus_config()
             'Size' => '50',
             'Default' => '',
             'Description' => 'Enter payment page UID here',
+        ),
+        'vat_id_field_name' => array(
+            'FriendlyName' => 'Vat ID field name',
+            'Type' => 'text',
+            'Size' => '50',
+            'Default' => '',
+            'Description' => 'Enter custom field name for vat ID if applicable',
         )
     );
 }
@@ -184,10 +191,16 @@ function payplus_capture($params)
         'contact_city' => $params['clientdetails']['city'],
         'contact_address' => $params['clientdetails']['address1'],
     ];
+    if ($params['vat_id_field_name']) {
+        $customer['vat_number'] = $params['clientdetails'][$params['vat_id_field_name']];
+    }
+    
     $paymentPage->SetCustomer($customer);
     $paymentPage->charge_method = ChargeMethods::CHARGE;
     $paymentPage->Go();
-    logModuleCall('payplus', 'Sending charge request', $paymentPage->payload,'Request sent');
+    
+
+    //logModuleCall('payplus', 'Sending charge request', $paymentPage->payload,'Request sent');
     if ($paymentPage->IsSuccess()) {
         return [
             'status' => 'success',
