@@ -187,9 +187,9 @@ function payplus_capture($params)
         'email' => $params['clientdetails']['email'],
         'vat_number' => $params['clientdetails']['tax_id'],
         'phone' => $params['clientdetails']['phonenumber'],
-        'contact_country' => $params['clientdetails']['countrycode'],
-        'contact_city' => $params['clientdetails']['city'],
-        'contact_address' => $params['clientdetails']['address1'],
+        'country' => $params['clientdetails']['countrycode'],
+        'city' => $params['clientdetails']['city'],
+        'address' => $params['clientdetails']['address1'],
     ];
     if ($params['vat_id_field_name']) {
         $customer['vat_number'] = $params['clientdetails'][$params['vat_id_field_name']];
@@ -200,7 +200,7 @@ function payplus_capture($params)
     $paymentPage->Go();
     
 
-    //logModuleCall('payplus', 'Sending charge request', $paymentPage->payload,'Request sent');
+    
     if ($paymentPage->IsSuccess()) {
         return [
             'status' => 'success',
@@ -230,9 +230,17 @@ function payplus_remoteinput($params)
         'amount' => 0
     ]);
     $customer = [
-        'customer_name' => $params['clientdetails']['fullname'],
+        'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
         'email' => $params['clientdetails']['email'],
+        'vat_number' => $params['clientdetails']['tax_id'],
+        'phone' => $params['clientdetails']['phonenumber'],
+        'country_iso' => $params['clientdetails']['countrycode'],
+        'city' => $params['clientdetails']['city'],
+        'address' => $params['clientdetails']['address1'],
     ];
+    if ($params['vat_id_field_name']) {
+        $customer['vat_number'] = $params['clientdetails'][$params['vat_id_field_name']];
+    }
     $paymentPage->SetCustomer($customer);
     $userID = openssl_encrypt($clientDetails['userid'], ENCRYPTION_ALGORITHM, PASSPHRASE);
     $paymentPage->more_info = base64_encode($userID);
