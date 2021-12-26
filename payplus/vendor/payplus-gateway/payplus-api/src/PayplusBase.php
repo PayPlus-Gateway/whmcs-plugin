@@ -1,5 +1,10 @@
 <?php
-
+/**
+ * Low level API for integration with the PayPlus payment processing gateway
+ * @package Payplus-API
+ * @author PayPlus LTD <info@payplus.co.il> https://www.payplus.co.il
+ * @since 1.0.0
+ */
 namespace PayplusGateway\PayplusApi;
 
 abstract class PayplusBase {
@@ -10,8 +15,7 @@ abstract class PayplusBase {
     public static $devMode = false;
     protected $errors = [];
     protected $actionPerformed = false;
-    public $payload;
-
+    private $payload;
     public function __construct()
     {
         if (!self::$apiKey || !self::$secretKey) {
@@ -33,6 +37,10 @@ abstract class PayplusBase {
         return $this;
     }
 
+    public function GetPayload() {
+        return $this->payload;
+    }
+
     public function GetErrors() {
         return $this->errors;
     }
@@ -49,7 +57,6 @@ abstract class PayplusBase {
     }
 
     protected function makeRequest($payload = null) {
-        
         $commandAndMethod = $this->GetCommandAndMethod();
         $authorization = [
             'api_key'=>self::$apiKey,

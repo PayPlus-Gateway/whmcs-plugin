@@ -2,20 +2,20 @@
     "packages": [
         {
             "name": "payplus-gateway/payplus-api",
-            "version": "1.0.4",
-            "version_normalized": "1.0.4.0",
+            "version": "1.1.0",
+            "version_normalized": "1.1.0.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/ZevWisegroup/payplus-api.git",
-                "reference": "70e4f8e0fbbee2891878fe07cbb20a1291d14c84"
+                "url": "https://github.com/PayplusPayment/php-api.git",
+                "reference": "e86cb10fc457dd8a26eb345d8988979155618a79"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ZevWisegroup/payplus-api/zipball/70e4f8e0fbbee2891878fe07cbb20a1291d14c84",
-                "reference": "70e4f8e0fbbee2891878fe07cbb20a1291d14c84",
+                "url": "https://api.github.com/repos/PayplusPayment/php-api/zipball/e86cb10fc457dd8a26eb345d8988979155618a79",
+                "reference": "e86cb10fc457dd8a26eb345d8988979155618a79",
                 "shasum": ""
             },
-            "time": "2021-11-18T11:06:19+00:00",
+            "time": "2021-12-26T10:06:20+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -35,8 +35,8 @@
                 }
             ],
             "support": {
-                "issues": "https://github.com/ZevWisegroup/payplus-api/issues",
-                "source": "https://github.com/ZevWisegroup/payplus-api/tree/1.0.4"
+                "issues": "https://github.com/PayplusPayment/php-api/issues",
+                "source": "https://github.com/PayplusPayment/php-api/tree/1.1.0"
             },
             "install-path": "../payplus-gateway/payplus-api"
         }

@@ -1,5 +1,5 @@
 {
     "require": {
-        "payplus-gateway/payplus-api": "^1.0"
+        "payplus-gateway/payplus-api": "^1.1"
     }
 }

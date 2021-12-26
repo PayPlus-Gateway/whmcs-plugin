@@ -1,5 +1,10 @@
 <?php
-
+/**
+ * Low level API for integration with the PayPlus payment processing gateway
+ * @package Payplus-API
+ * @author PayPlus LTD <info@payplus.co.il> https://www.payplus.co.il
+ * @since 1.0.0
+ */
 namespace PayplusGateway\PayplusApi;
 
 class Ipn extends PayplusBase{

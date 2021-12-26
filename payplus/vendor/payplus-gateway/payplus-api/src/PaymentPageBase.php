@@ -71,9 +71,9 @@ abstract class PaymentPageBase extends PayplusBase {
             'customer_type',
             'phone',
             'cell_phone',
-            'address',
-            'city',
-            'country_ISO',
+            'contact_address',
+            'contact_city',
+            'contact_country',
         ]);
         return true;
     }
