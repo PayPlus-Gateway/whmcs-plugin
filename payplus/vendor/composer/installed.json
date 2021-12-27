@@ -2,20 +2,20 @@
     "packages": [
         {
             "name": "payplus-gateway/payplus-api",
-            "version": "1.1.0",
-            "version_normalized": "1.1.0.0",
+            "version": "1.1.1",
+            "version_normalized": "1.1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PayplusPayment/php-api.git",
-                "reference": "e86cb10fc457dd8a26eb345d8988979155618a79"
+                "reference": "63903fd54b6ee50c3274c40667403bd0703ab8d3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PayplusPayment/php-api/zipball/e86cb10fc457dd8a26eb345d8988979155618a79",
-                "reference": "e86cb10fc457dd8a26eb345d8988979155618a79",
+                "url": "https://api.github.com/repos/PayplusPayment/php-api/zipball/63903fd54b6ee50c3274c40667403bd0703ab8d3",
+                "reference": "63903fd54b6ee50c3274c40667403bd0703ab8d3",
                 "shasum": ""
             },
-            "time": "2021-12-26T10:06:20+00:00",
+            "time": "2021-12-27T04:17:14+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -36,7 +36,7 @@
             ],
             "support": {
                 "issues": "https://github.com/PayplusPayment/php-api/issues",
-                "source": "https://github.com/PayplusPayment/php-api/tree/1.1.0"
+                "source": "https://github.com/PayplusPayment/php-api/tree/1.1.1"
             },
             "install-path": "../payplus-gateway/payplus-api"
         }
