@@ -199,14 +199,21 @@ function payplus_capture($params)
     $paymentPage->charge_method = ChargeMethods::CHARGE;
     $paymentPage->Go();
     
-
-    
     if ($paymentPage->IsSuccess()) {
+        logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
+            'error'=>$paymentPage->Response,
+            'payload'=>$paymentPage->GetPayload()        
+        ], 'Req user ID...');
         return [
             'status' => 'success',
             'transid' => $paymentPage->Response->result->transaction_uid
         ];
     }
+
+    logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
+        'error'=>$paymentPage->GetErrors(),
+        'payload'=>$paymentPage->GetPayload()        
+    ], 'Req user ID...');
 
     return [
         'status' => 'declined'
