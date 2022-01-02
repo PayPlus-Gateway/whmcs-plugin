@@ -45,7 +45,7 @@ if (!$_REQUEST['token_uid'] || !$_REQUEST['terminal_uid']) {
     die;
 }
 
-$tokenData = $_REQUEST['token_uid'] . TOKEN_TERMINAL_SEPARATOR . $_REQUEST['terminal_uid'];
+$tokenData = $_REQUEST['token_uid'];
 if (
     $requestedUserID !== null
     && ($requestedUserID == $loggedUserID

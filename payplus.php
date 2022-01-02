@@ -125,18 +125,33 @@ function payplus_storeremote($params)
                 'status' => 'success'
             ];
             break;
+
         case REMOTE_STORE_ACTION_UPDATE:
-            $updateToken = new Update;
             $tokenData = explode(TOKEN_TERMINAL_SEPARATOR, $params['gatewayid']);
             $tokenUID = $tokenData[0];
-            $payment = $params['payMethod']->payment;
-            $currencyExpiry = $payment->getExpiryDate()->format("my");
-            $terminalUID = $tokenData[1];
-            if ($currencyExpiry == $params['cardexp']) {
+            $currencyCode = ($params['clientdetails']['model']->getCurrencyCodeAttribute()) ?:'ILS';
+            $paymentPage = new TokenPay;
+            $paymentPage->Init([
+                'payment_page_uid' =>  $params['paymentPageUID'],
+                'currency_code' => $currencyCode,
+                'amount' => 0,
+                'token' => $tokenUID
+            ]);
+            $paymentPage->charge_method = ChargeMethods::CHECK;
+            $paymentPage->SetCustomer([
+                'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
+                'email' => $params['clientdetails']['email'],
+            ]);
+            if ($paymentPage->Go()->IsSuccess() && isset($paymentPage->Response->result->terminal_uid)) {
+                $terminalUID = $paymentPage->Response->result->terminal_uid;
+            } else {
                 return [
-                    'status' => 'success'
+                    'status' => 'failed'
                 ];
             }
+            $updateToken = new Update;
+            $payment = $params['payMethod']->payment;
+
             $updateToken->Init([
                 'uid' => $tokenUID,
                 'terminal_uid' => $terminalUID,
@@ -148,7 +163,8 @@ function payplus_storeremote($params)
                 $payment->setExpiryDate($exp);
                 $payment->save();
                 return [
-                    'status' => 'success'
+                    'status' => 'success',
+                    'gatewayid'=>$tokenUID
                 ];
             }
             break;
