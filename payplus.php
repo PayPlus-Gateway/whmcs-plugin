@@ -129,12 +129,12 @@ function payplus_storeremote($params)
         case REMOTE_STORE_ACTION_UPDATE:
             $tokenData = explode(TOKEN_TERMINAL_SEPARATOR, $params['gatewayid']);
             $tokenUID = $tokenData[0];
-            $currencyCode = ($params['clientdetails']['model']->getCurrencyCodeAttribute()) ?:'ILS';
+
             $paymentPage = new TokenPay;
             $paymentPage->Init([
                 'payment_page_uid' =>  $params['paymentPageUID'],
-                'currency_code' => $currencyCode,
-                'amount' => 0,
+                'currency_code' => 'ILS',
+                'amount' =>0,
                 'token' => $tokenUID
             ]);
             $paymentPage->charge_method = ChargeMethods::CHECK;
@@ -190,12 +190,31 @@ function payplus_capture($params)
         'token' => $params['gatewayid']
     ]);
 
-    foreach ($params['cart']->getItems() as $item) {
+    
+    $orderData = $params['cart']->getInvoiceModel()->order()->getResults();
+    $total = 0;
+    foreach ($params['cart']->getInvoiceModel()->getBillingValues() as $item) {
+        if (!isset($item['lineItemAmount'])) {
+            continue;
+        }
         $paymentPage->AddItem([
-            'price' => $item->getAmount()->getValue(),
-            'name' => $item->getName(),
-            'quantity' => $item->getQuantity()
+            'price' => $item['lineItemAmount'],
+            'name' => $item['description'],
+            'quantity' => 1
         ]);
+        $total+= $item['lineItemAmount'];
+    }
+    
+    if ($orderData && $orderData->promovalue) {
+        $totalDiscount = $total - $params['amount'];
+        if ($totalDiscount > 0) {
+            $paymentPage->AddItem([
+                'price' => $totalDiscount *=-1,
+                'name' => $orderData->promocode ?? 'Discount',
+                'quantity' => 1
+            ]);
+        }
+
     }
 
     $customer = [
@@ -214,7 +233,6 @@ function payplus_capture($params)
     $paymentPage->SetCustomer($customer);
     $paymentPage->charge_method = ChargeMethods::CHARGE;
     $paymentPage->Go();
-    
     if ($paymentPage->IsSuccess()) {
         logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
             'error'=>$paymentPage->Response,

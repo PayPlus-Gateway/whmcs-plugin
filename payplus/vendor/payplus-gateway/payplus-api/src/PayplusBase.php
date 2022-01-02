@@ -38,7 +38,7 @@ abstract class PayplusBase {
     }
 
     public function GetPayload() {
-        return $this->payload;
+        return $this->createPayload();
     }
 
     public function GetErrors() {

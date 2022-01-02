@@ -1,7 +1,7 @@
 {
     "name": "payplus-gateway/payplus-api",
     "type": "library",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "license": [
         "OSL-3.0",
         "AFL-3.0"

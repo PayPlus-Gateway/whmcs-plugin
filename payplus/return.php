@@ -21,6 +21,11 @@ if ($userDetails && $userDetails['userid']) {
 define('IS_ADMIN_AREA', $_REQUEST['adminarea'] === '1');
 $authenticatedAdmin = \WHMCS\User\Admin::getAuthenticatedUser();
 
+$cardName = null;
+if ($_REQUEST['issuer_id'] && array_key_exists($_REQUEST['issuer_id'],$cardNames)) {
+    $cardName = $cardNames[$_REQUEST['issuer_id']];
+}
+
 $gatewayModuleName = 'payplus';
 define('CURRENT_DEBUG_ACTION','return.php');
 $gatewayParams = getGatewayVariables($gatewayModuleName);
@@ -52,21 +57,23 @@ if (
         || $authenticatedAdmin !== null)
 ) {
     $exception = null;
+
+    $x = new ReflectionFunction('createCardPayMethod');
     try {
         $createCardStatus = createCardPayMethod(
             $requestedUserID,
             $gatewayModuleName,
             $fourDigits,
             $expiryDate,
-            null,
+            $cardName,
             null,
             null,
             $tokenData
         );
+
     } catch (\Exception $th) {
         PayplusGateway\ddv($createCardStatus);
     }
-
     if (!$createCardStatus) {
         $debugData['extra']['requestedUserID'] = $requestedUserID;
         $debugData['extra']['loggedUserID'] = $loggedUserID;
