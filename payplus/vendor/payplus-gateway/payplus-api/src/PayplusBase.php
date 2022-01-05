@@ -16,6 +16,7 @@ abstract class PayplusBase {
     protected $errors = [];
     protected $actionPerformed = false;
     private $payload;
+    public $details;
     public function __construct()
     {
         if (!self::$apiKey || !self::$secretKey) {

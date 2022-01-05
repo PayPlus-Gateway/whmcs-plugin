@@ -10,7 +10,6 @@ namespace PayplusGateway\PayplusApi;
 class Ipn extends PayplusBase{
     public $payment_request_uid;
     public $transaction_uid;
-    public $details;
 
     public function IsSuccess()
     {

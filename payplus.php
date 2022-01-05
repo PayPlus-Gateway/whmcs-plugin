@@ -34,7 +34,6 @@ use PayplusGateway\PayplusApi\ChargeMethods;
 use PayplusGateway\PayplusApi\PaymentPage;
 use PayplusGateway\PayplusApi\PayplusBase;
 use PayplusGateway\PayplusApi\RefundByTransactionUID;
-use PayplusGateway\PayplusApi\TokenPay;
 use PayplusGateway\PayplusApi\Tokens\Remove;
 use PayplusGateway\PayplusApi\Tokens\Update;
 
@@ -95,6 +94,13 @@ function payplus_config()
             'Default' => '',
             'Description' => 'Enter payment page UID here',
         ),
+        'terminalUID' => array(
+            'FriendlyName' => 'Terminal UID',
+            'Type' => 'text',
+            'Size' => '50',
+            'Default' => '',
+            'Description' => 'Enter terminal UID here',
+        ),
         'vat_id_field_name' => array(
             'FriendlyName' => 'Vat ID field name',
             'Type' => 'text',
@@ -129,38 +135,12 @@ function payplus_storeremote($params)
         case REMOTE_STORE_ACTION_UPDATE:
             $tokenData = explode(TOKEN_TERMINAL_SEPARATOR, $params['gatewayid']);
             $tokenUID = $tokenData[0];
-
-            $paymentPage = new TokenPay;
-            $paymentPage->Init([
-                'payment_page_uid' =>  $params['paymentPageUID'],
-                'currency_code' => 'ILS',
-                'amount' =>0,
-                'token' => $tokenUID
-            ]);
-            $paymentPage->charge_method = ChargeMethods::CHECK;
-            $paymentPage->SetCustomer([
-                'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
-                'email' => $params['clientdetails']['email'],
-                'tokenData'=>$tokenData,
-                'paramsGatewayId'=>$params['gatewayid']
-            ]);
-            if ($paymentPage->Go()->IsSuccess() && isset($paymentPage->Response->result->terminal_uid)) {
-                $terminalUID = $paymentPage->Response->result->terminal_uid;
-            } else {
-                logModuleCall('payplyus', CURRENT_DEBUG_ACTION, [
-                    'error'=>$paymentPage->GetErrors(),
-                    'payload'=>$paymentPage->GetPayload()
-                ], "Can't update token");
-                return [
-                    'status' => 'failed'
-                ];
-            }
             $updateToken = new Update;
             $payment = $params['payMethod']->payment;
 
             $updateToken->Init([
                 'uid' => $tokenUID,
-                'terminal_uid' => $terminalUID,
+                'terminal_uid' => $params['terminalUID'],
                 'credit_card_number' => $params['cardlastfour'],
                 'card_date_mmyy' => $params['cardexp'],
             ]);
