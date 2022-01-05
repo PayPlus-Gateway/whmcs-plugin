@@ -29,7 +29,7 @@
 
 require_once "payplus/init.php";
 require_once __DIR__ . '/../../includes/clientfunctions.php';
-
+define('CURRENT_DEBUG_ACTION','main file');
 use PayplusGateway\PayplusApi\ChargeMethods;
 use PayplusGateway\PayplusApi\PaymentPage;
 use PayplusGateway\PayplusApi\PayplusBase;
@@ -141,10 +141,16 @@ function payplus_storeremote($params)
             $paymentPage->SetCustomer([
                 'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
                 'email' => $params['clientdetails']['email'],
+                'tokenData'=>$tokenData,
+                'paramsGatewayId'=>$params['gatewayid']
             ]);
             if ($paymentPage->Go()->IsSuccess() && isset($paymentPage->Response->result->terminal_uid)) {
                 $terminalUID = $paymentPage->Response->result->terminal_uid;
             } else {
+                logModuleCall('payplyus', CURRENT_DEBUG_ACTION, [
+                    'error'=>$paymentPage->GetErrors(),
+                    'payload'=>$paymentPage->GetPayload()
+                ], "Can't update token");
                 return [
                     'status' => 'failed'
                 ];
