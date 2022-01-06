@@ -34,6 +34,7 @@ use PayplusGateway\PayplusApi\ChargeMethods;
 use PayplusGateway\PayplusApi\PaymentPage;
 use PayplusGateway\PayplusApi\PayplusBase;
 use PayplusGateway\PayplusApi\RefundByTransactionUID;
+use PayplusGateway\PayplusApi\TokenPay;
 use PayplusGateway\PayplusApi\Tokens\Remove;
 use PayplusGateway\PayplusApi\Tokens\Update;
 
