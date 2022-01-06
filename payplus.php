@@ -163,6 +163,8 @@ function payplus_storeremote($params)
 }
 function payplus_capture($params)
 {
+    global $_LANG;
+    $translations = getTranslation(substr($_LANG['locale'],0,2));
     PayplusBase::$apiKey = $params['apiKey'];
     PayplusBase::$secretKey = $params['secretKey'];
     PayplusBase::$devMode = ($params['devMode'] == 'on');
@@ -191,17 +193,19 @@ function payplus_capture($params)
         ]);
         $total+= $item['lineItemAmount'];
     }
-    
     if ($orderData && $orderData->promovalue) {
         $totalDiscount = $total - $params['amount'];
         if ($totalDiscount > 0) {
+            $name = $translations['coupon-discount'];
+            if ($orderData->promocode) {
+                $name .= ': '.$orderData->promocode;
+            }
             $paymentPage->AddItem([
                 'price' => $totalDiscount *=-1,
-                'name' => $orderData->promocode ?? 'Discount',
+                'name' => $name,
                 'quantity' => 1
             ]);
         }
-
     }
 
     $customer = [
@@ -239,6 +243,16 @@ function payplus_capture($params)
     return [
         'status' => 'declined'
     ];
+}
+
+function getTranslation($lang) {
+    $translations = [];
+    $translations['coupon-discount'] = 'Coupon discount';
+    if ($lang == 'he') {
+        $translations['coupon-discount'] = 'הנחת קופון';
+    }
+    return $translations;
+    
 }
 
 function payplus_remoteinput($params)
