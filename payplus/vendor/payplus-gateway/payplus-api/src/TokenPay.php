@@ -53,6 +53,9 @@ class TokenPay extends PaymentPageBase {
         $payload = parent::createPayload();
         $payload['token'] = $this->token;
         $payload['use_token'] = true;
+        if ($this->move_token !== null) {
+            $payload['move_token'] = $this->move_token;
+        }
         return $payload;
     }
 

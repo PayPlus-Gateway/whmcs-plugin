@@ -108,6 +108,11 @@ function payplus_config()
             'Size' => '50',
             'Default' => '',
             'Description' => 'Enter custom field name for vat ID if applicable',
+        ),
+        'move_token' => array(
+            'FriendlyName' => 'Move token',
+            'Type' => 'yesno',
+            'Description' => 'Tick to send the move_token parameter with transactions',
         )
     );
 }
@@ -170,7 +175,6 @@ function payplus_capture($params)
     PayplusBase::$devMode = ($params['devMode'] == 'on');
     $params['gatewayid'] = explode(TOKEN_TERMINAL_SEPARATOR, $params['gatewayid']);
     $params['gatewayid'] = $params['gatewayid'][0];
-
     $paymentPage = new TokenPay;
     $paymentPage->Init([
         'payment_page_uid' =>  $params['paymentPageUID'],
@@ -219,9 +223,11 @@ function payplus_capture($params)
     ];
     if ($params['vat_id_field_name']) {
         $customer['vat_number'] = $params['clientdetails'][$params['vat_id_field_name']];
+        $paymentPage->SetCustomer($customer);
     }
-    
-    $paymentPage->SetCustomer($customer);
+    if ($params['move_token'] === 'on') {
+        $paymentPage->move_token = true;
+    }
     $paymentPage->charge_method = ChargeMethods::CHARGE;
     $paymentPage->Go();
     if ($paymentPage->IsSuccess()) {
@@ -234,7 +240,6 @@ function payplus_capture($params)
             'transid' => $paymentPage->Response->result->transaction_uid
         ];
     }
-
     logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
         'error'=>$paymentPage->GetErrors(),
         'payload'=>$paymentPage->GetPayload()        
