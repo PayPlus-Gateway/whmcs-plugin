@@ -183,35 +183,26 @@ function payplus_capture($params)
         'token' => $params['gatewayid']
     ]);
 
-    
-    $orderData = $params['cart']->getInvoiceModel()->order()->getResults();
     $total = 0;
-    foreach ($params['cart']->getInvoiceModel()->getBillingValues() as $item) {
-        if (!isset($item['lineItemAmount'])) {
-            continue;
-        }
-        $paymentPage->AddItem([
-            'price' => $item['lineItemAmount'],
-            'name' => $item['description'],
+    $taxCalculator = $params['cart']->getTaxCalculator($params['cart']->client);
+    foreach($params['cart']->getInvoiceModel()->lineItems as $item) {
+        $itemLine = [
+            'price' => $item->amount,
+            'name' => $item->description,
             'quantity' => 1
-        ]);
-        $total+= $item['lineItemAmount'];
-    }
-    if ($orderData && $orderData->promovalue) {
-        $totalDiscount = $total - $params['amount'];
-        if ($totalDiscount > 0) {
-            $name = $translations['coupon-discount'];
-            if ($orderData->promocode) {
-                $name .= ': '.$orderData->promocode;
-            }
-            $paymentPage->AddItem([
-                'price' => $totalDiscount *=-1,
-                'name' => $name,
-                'quantity' => 1
-            ]);
+        ];
+        
+        if (
+            WHMCS\Config\Setting::getValue("TaxEnabled") 
+            && $item->taxed
+            && !$params['cart']->client->taxExempt
+            ) {
+            $itemLine['price'] = $taxCalculator->setTaxBase($item->amount)->getTotalAfterTaxes();
         }
-    }
 
+        $paymentPage->AddItem($itemLine);
+        $total+=$itemLine['price'];
+    }
     $customer = [
         'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
         'email' => $params['clientdetails']['email'],
