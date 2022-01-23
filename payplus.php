@@ -1,4 +1,5 @@
 <?php
+define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.1");
 
 /**
  * WHMCS Sample Payment Gateway Module
@@ -64,7 +65,12 @@ function payplus_MetaData()
 
 function payplus_config()
 {
-    return array(
+    return [
+        'version' =>[
+            'FriendlyName' => 'Module version',
+            'Description' => PAYLUS_GATEWAY_MODULE_VERSION,
+            'Value' => PAYLUS_GATEWAY_MODULE_VERSION,
+        ],
         'FriendlyName' => array(
             'Type' => 'System',
             'Value' => 'PayPlus Gateway',
@@ -114,7 +120,7 @@ function payplus_config()
             'Type' => 'yesno',
             'Description' => 'Tick to send the move_token parameter with transactions',
         )
-    );
+    ];
 }
 function payplus_nolocalcc()
 {
@@ -203,6 +209,18 @@ function payplus_capture($params)
         $paymentPage->AddItem($itemLine);
         $total+=$itemLine['price'];
     }
+    
+    $paramsAmount =  $params['amount'] * 100;
+    $totalC =   $total * 100;
+    $diff = $paramsAmount - $totalC;
+    if (abs($diff) == 1) {
+        $paymentPage->AddItem([
+            'price'=>$diff / 100,
+            'quantity'=>1,
+            'name'=> $translations['rounding-difference']
+        ]);
+    }
+
     $customer = [
         'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
         'email' => $params['clientdetails']['email'],
@@ -214,18 +232,15 @@ function payplus_capture($params)
     ];
     if ($params['vat_id_field_name']) {
         $customer['vat_number'] = $params['clientdetails'][$params['vat_id_field_name']];
-        $paymentPage->SetCustomer($customer);
     }
+    $paymentPage->SetCustomer($customer);
     if ($params['move_token'] === 'on') {
         $paymentPage->move_token = true;
     }
+    $paymentPage->more_info = $params['invoiceid'];
     $paymentPage->charge_method = ChargeMethods::CHARGE;
     $paymentPage->Go();
     if ($paymentPage->IsSuccess()) {
-        logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
-            'error'=>$paymentPage->Response,
-            'payload'=>$paymentPage->GetPayload()        
-        ], 'Req user ID...');
         return [
             'status' => 'success',
             'transid' => $paymentPage->Response->result->transaction_uid
@@ -235,17 +250,21 @@ function payplus_capture($params)
         'error'=>$paymentPage->GetErrors(),
         'payload'=>$paymentPage->GetPayload()        
     ], 'Req user ID...');
-
+    
     return [
-        'status' => 'declined'
+        'status' => 'declined',
+        'rawdata'=>$paymentPage->GetErrors(),
+        'declinereason'=>$paymentPage->GetErrors()
     ];
 }
 
 function getTranslation($lang) {
     $translations = [];
     $translations['coupon-discount'] = 'Coupon discount';
+    $translations['rounding-difference'] = 'Rounding difference';
     if ($lang == 'he') {
         $translations['coupon-discount'] = 'הנחת קופון';
+        $translations['rounding-difference'] = 'הפרש עיגול';
     }
     return $translations;
     
@@ -335,5 +354,3 @@ function payplus_refund($params)
     }
     return $result;
 }
-
-// function payplus_cancelSubscription($params){}
