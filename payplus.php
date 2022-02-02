@@ -1,5 +1,5 @@
 <?php
-define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.1");
+define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.2");
 
 /**
  * WHMCS Sample Payment Gateway Module
@@ -243,7 +243,7 @@ function payplus_capture($params)
     if ($paymentPage->IsSuccess()) {
         return [
             'status' => 'success',
-            'transid' => $paymentPage->Response->result->transaction_uid
+            'transid' => $paymentPage->Response->result->number
         ];
     }
     logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
