@@ -1,5 +1,5 @@
 <?php
-define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.2");
+define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.3");
 
 /**
  * WHMCS Sample Payment Gateway Module
@@ -29,6 +29,7 @@ define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.2");
 
 
 require_once "payplus/init.php";
+require_once "payplus/payments_hook.php";
 require_once __DIR__ . '/../../includes/clientfunctions.php';
 define('CURRENT_DEBUG_ACTION','main file');
 use PayplusGateway\PayplusApi\ChargeMethods;
@@ -43,6 +44,7 @@ require_once "payplus/vendor/autoload.php";
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
+
 
 /**
  * Define module related meta data.
@@ -79,6 +81,11 @@ function payplus_config()
             'FriendlyName' => 'Dev Mode',
             'Type' => 'yesno',
             'Description' => 'Tick to enable dev mode',
+        ),
+        'enable_payments' => array(
+            'FriendlyName' => 'Enable payments',
+            'Type' => 'yesno',
+            'Description' => 'Tick to enable payments',
         ),
         'apiKey' => array(
             'FriendlyName' => 'API Key',
@@ -175,6 +182,7 @@ function payplus_storeremote($params)
 function payplus_capture($params)
 {
     global $_LANG;
+
     $translations = getTranslation(substr($_LANG['locale'],0,2));
     PayplusBase::$apiKey = $params['apiKey'];
     PayplusBase::$secretKey = $params['secretKey'];
@@ -188,7 +196,10 @@ function payplus_capture($params)
         'amount' => $params['amount'],
         'token' => $params['gatewayid']
     ]);
-
+    $numPayments = $_REQUEST['payments'] ?? null;
+    if (ADMINAREA && $numPayments && $numPayments > 1) {
+        $paymentPage->payments = $numPayments;
+    }
     $total = 0;
     $taxCalculator = $params['cart']->getTaxCalculator($params['cart']->client);
     foreach($params['cart']->getInvoiceModel()->lineItems as $item) {
