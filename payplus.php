@@ -122,6 +122,13 @@ function payplus_config()
             'Default' => '',
             'Description' => 'Enter custom field name for vat ID if applicable',
         ),
+        'devurl' => array(
+            'FriendlyName' => 'Dev API address',
+            'Type' => 'text',
+            'Size' => '50',
+            'Default' => '',
+            'Description' => 'API address (only applicable for dev mode. !!Leave blank!!)',
+        ),
         'move_token' => array(
             'FriendlyName' => 'Move token',
             'Type' => 'yesno',
@@ -187,6 +194,9 @@ function payplus_capture($params)
     PayplusBase::$apiKey = $params['apiKey'];
     PayplusBase::$secretKey = $params['secretKey'];
     PayplusBase::$devMode = ($params['devMode'] == 'on');
+    if ($params['devMode'] === 'on' && $params['devurl']) {
+        PayplusBase::$DEV_ADDRESS = $params['devurl'];
+    }
     $params['gatewayid'] = explode(TOKEN_TERMINAL_SEPARATOR, $params['gatewayid']);
     $params['gatewayid'] = $params['gatewayid'][0];
     $paymentPage = new TokenPay;
@@ -286,6 +296,9 @@ function payplus_remoteinput($params)
     PayplusBase::$apiKey = $params['apiKey'];
     PayplusBase::$secretKey = $params['secretKey'];
     PayplusBase::$devMode = ($params['devMode'] == 'on');
+    if ($params['devMode'] === 'on' && $params['devurl']) {
+        PayplusBase::$DEV_ADDRESS = $params['devurl'];
+    }
     $clientDetails = $params['clientdetails'];
     $paymentPage = new PaymentPage;
     $currencyCode = 'ILS';

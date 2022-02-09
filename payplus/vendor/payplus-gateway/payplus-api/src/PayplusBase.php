@@ -17,6 +17,9 @@ abstract class PayplusBase {
     protected $actionPerformed = false;
     private $payload;
     public $details;
+    private static $errorCallback = null;
+    public static $DEV_ADDRESS = 'https://restapidev.payplus.co.il/api/v1.0';
+    public static $PROD_ADDRESS = 'https://restapi.payplus.co.il/api/v1.0';
     public function __construct()
     {
         if (!self::$apiKey || !self::$secretKey) {
@@ -34,8 +37,15 @@ abstract class PayplusBase {
         
         if ($this->Response->success == 1) {
             $this->successfulResponse($this->Response);
+        } elseif(self::$errorCallback) {
+            $fn = self::$errorCallback;
+            $fn($this->Response, $this->payload);
         }
         return $this;
+    }
+    
+    public static function SetErrorCallback($fn) {
+        self::$errorCallback = $fn;
     }
 
     public function GetPayload() {
@@ -50,9 +60,9 @@ abstract class PayplusBase {
         $commandAndMethod = $this->GetCommandAndMethod();
         $addr = '';
         if (self::$devMode === true) {
-            $addr = 'https://restapidev.payplus.co.il/api/v1.0';
+            $addr = self::$DEV_ADDRESS;
         } else {
-            $addr = 'https://restapi.payplus.co.il/api/v1.0';
+            $addr = self::$PROD_ADDRESS;
         }
         return $addr . '/' . trim($commandAndMethod->command,'/');
     }
@@ -86,9 +96,14 @@ abstract class PayplusBase {
             $result->result = $response->data;
             return $result;
         }
-        if (isset($response->status) && $response->status == 'success') {
-            $result->success = 1;
-            $result->result = $response->data;
+        if (isset($response->status)) {
+            if ($response->status == 'success') {
+                $result->success = 1;
+                $result->result = $response->data;
+            } else {
+                $result->result = $response->status;
+                $this->errors[] = $response->status;
+            }
             return $result;
         }
         $result->success = 0;

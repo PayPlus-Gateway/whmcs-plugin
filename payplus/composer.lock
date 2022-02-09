@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "payplus-gateway/payplus-api",
-            "version": "1.1.5",
+            "version": "1.1.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PayplusPayment/php-api.git",
-                "reference": "d156929065e963551c99f4fddd5173954bd556be"
+                "reference": "edb06ac669a05bcf89f696aee903e9cbb4208a2c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PayplusPayment/php-api/zipball/d156929065e963551c99f4fddd5173954bd556be",
-                "reference": "d156929065e963551c99f4fddd5173954bd556be",
+                "url": "https://api.github.com/repos/PayplusPayment/php-api/zipball/edb06ac669a05bcf89f696aee903e9cbb4208a2c",
+                "reference": "edb06ac669a05bcf89f696aee903e9cbb4208a2c",
                 "shasum": ""
             },
             "type": "library",
@@ -39,9 +39,9 @@
             ],
             "support": {
                 "issues": "https://github.com/PayplusPayment/php-api/issues",
-                "source": "https://github.com/PayplusPayment/php-api/tree/1.1.5"
+                "source": "https://github.com/PayplusPayment/php-api/tree/1.1.11"
             },
-            "time": "2022-01-11T09:20:54+00:00"
+            "time": "2022-02-09T11:36:50+00:00"
         }
     ],
     "packages-dev": [],
@@ -52,5 +52,5 @@
     "prefer-lowest": false,
     "platform": [],
     "platform-dev": [],
-    "plugin-api-version": "2.1.0"
+    "plugin-api-version": "2.2.0"
 }

@@ -32,6 +32,7 @@ abstract class PaymentPageBase extends PayplusBase {
     public $hide_identification_id;
     public $hide_payments_field;
     public $token;
+    public $transaction_uid;
 
     protected function GetCommandAndMethod()
     {
@@ -128,6 +129,7 @@ abstract class PaymentPageBase extends PayplusBase {
             'custom_invoice_name',
             'create_token',
             'initial_invoice',
+            'transaction_uid',
             'invoice_language',
             'paying_vat',
             'payments',
