@@ -1,5 +1,5 @@
 <?php
-define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.3");
+define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.4");
 
 /**
  * WHMCS Sample Payment Gateway Module
@@ -189,7 +189,6 @@ function payplus_storeremote($params)
 function payplus_capture($params)
 {
     global $_LANG;
-
     $translations = getTranslation(substr($_LANG['locale'],0,2));
     PayplusBase::$apiKey = $params['apiKey'];
     PayplusBase::$secretKey = $params['secretKey'];
@@ -206,6 +205,7 @@ function payplus_capture($params)
         'amount' => $params['amount'],
         'token' => $params['gatewayid']
     ]);
+
     $numPayments = $_REQUEST['payments'] ?? null;
     if (ADMINAREA && $numPayments && $numPayments > 1) {
         $paymentPage->payments = $numPayments;
@@ -229,6 +229,17 @@ function payplus_capture($params)
 
         $paymentPage->AddItem($itemLine);
         $total+=$itemLine['price'];
+    }
+
+    $credit = (float)$params['cart']->getInvoiceModel()->getAttribute('credit');
+    if ($credit > 0) {
+        $itemLine = [
+            'price' => $credit * -1,
+            'name' => 'Credit',
+            'quantity' => 1
+        ];
+        $paymentPage->AddItem($itemLine);
+        $total-=$credit;
     }
     
     $paramsAmount =  $params['amount'] * 100;
