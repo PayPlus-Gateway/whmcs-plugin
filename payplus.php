@@ -1,4 +1,5 @@
 <?php
+require_once "payplus_gateway_config.php";
 define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.4");
 
 /**
@@ -28,8 +29,8 @@ define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.4");
  */
 
 
-require_once "payplus/init.php";
-require_once "payplus/payments_hook.php";
+require_once PAYPLUS_GATEWAY_NAME_SIMPLE."/init.php";
+require_once PAYPLUS_GATEWAY_NAME_SIMPLE."/payments_hook.php";
 require_once __DIR__ . '/../../includes/clientfunctions.php';
 define('CURRENT_DEBUG_ACTION','main file');
 use PayplusGateway\PayplusApi\ChargeMethods;
@@ -40,7 +41,7 @@ use PayplusGateway\PayplusApi\TokenPay;
 use PayplusGateway\PayplusApi\Tokens\Remove;
 use PayplusGateway\PayplusApi\Tokens\Update;
 
-require_once "payplus/vendor/autoload.php";
+require_once PAYPLUS_GATEWAY_NAME_SIMPLE."/vendor/autoload.php";
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
@@ -337,7 +338,7 @@ function payplus_remoteinput($params)
     $userID = openssl_encrypt($clientDetails['userid'], ENCRYPTION_ALGORITHM, PASSPHRASE);
     $paymentPage->more_info = base64_encode($userID);
     $get = [];
-    $paymentPage->refURL_success = $params['systemurl'] . 'modules/gateways/payplus/return.php';
+    $paymentPage->refURL_success = $params['systemurl'] . 'modules/gateways/'.PAYPLUS_GATEWAY_NAME_SIMPLE.'/return.php';
     if ($params['invoiceid']) {
         $get['invoiceid'] = $params['invoiceid'];
     }
