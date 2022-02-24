@@ -1,8 +1,9 @@
 *
 !*/
-!/payplus_gateway_config.php
+!/payplusnew.php
 !/payplus.php
 !/callback/payplus.php
+!/callback/payplusnew.php
 !/payplus/**
 !/payplus/init.php
 !.gitignore

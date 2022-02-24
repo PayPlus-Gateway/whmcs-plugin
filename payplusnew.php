@@ -8,36 +8,36 @@ require_once "payplus/payments_hook.php";
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
-PayplusInstance::$DisplayName = "PayPlus Gateway";
-PayplusInstance::$GatewayName = "payplus";
-PayplusInstance::$GatewayNameMeta = "PayPlus";
+PayplusInstance::$DisplayName = "New PayPlus Gateway";
+PayplusInstance::$GatewayName = "payplusnew";
+PayplusInstance::$GatewayNameMeta = "New PayPlus";
 
-function payplus_MetaData()
+function payplusnew_MetaData()
 {
     return PayplusInstance::MetaData();
 }
 
-function payplus_config()
+function payplusnew_config()
 {
     return PayplusInstance::Config();
 }
-function payplus_nolocalcc() {}
+function payplusnew_nolocalcc() {}
 
-function payplus_storeremote($params)
+function payplusnew_storeremote($params)
 {
     return PayplusInstance::RemoteStore($params);
 }
-function payplus_capture($params)
+function payplusnew_capture($params)
 {
     return PayplusInstance::Capture($params);
 }
 
-function payplus_remoteinput($params)
+function payplusnew_remoteinput($params)
 {
     return PayplusInstance::RemoteInput($params);
 }
 
-function payplus_refund($params)
+function payplusnew_refund($params)
 {
     return PayplusInstance::Refund($params);
 }

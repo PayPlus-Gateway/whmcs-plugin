@@ -1,3 +1,3 @@
 <?php
-$gatewayModuleName = 'payplus';
+$gatewayModuleName = 'payplusnew';
 require_once "../payplus/callback.php";

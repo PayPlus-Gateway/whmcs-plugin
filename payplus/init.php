@@ -1,7 +1,7 @@
 <?php
 
 require_once "debug.php";
-
+define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.4");
 define('PASSPHRASE','OanN&&TAp4U9vt@1*0c%OvjyI');
 define('ENCRYPTION_ALGORITHM','AES-256-CBC');
 define('REMOTE_STORE_ACTION_DELETE','delete');
@@ -18,4 +18,9 @@ $cardNames = [
     6 =>'jbc',
     7 =>'discover',
     8 =>'maestro'
+];
+
+$gatewayHashes = [
+    md5('payplus')=> 'payplus',
+    md5('payplusnew')=> 'payplusnew'
 ];
