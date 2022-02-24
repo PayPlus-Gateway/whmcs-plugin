@@ -161,7 +161,6 @@ class PayplusInstance
         $customer = [
             'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
             'email' => $params['clientdetails']['email'],
-            'vat_number' => $params['clientdetails']['tax_id'],
             'phone' => $params['clientdetails']['phonenumber'],
             'country' => $params['clientdetails']['countrycode'],
             'city' => $params['clientdetails']['city'],
@@ -187,7 +186,13 @@ class PayplusInstance
             'error'=>$paymentPage->GetErrors(),
             'payload'=>$paymentPage->GetPayload()        
         ], 'Req user ID...');
-        
+        $errors = $paymentPage->GetErrors();
+        $html = '';
+        if (in_array('vat-id-not-valid',$errors)) {
+            $html .= '<div>'.$translations['invalid_tax_id'].'</div>';
+        }
+
+        WHMCS\Session::set("credit-card-error", $html);
         return [
             'status' => 'declined',
             'rawdata'=>$paymentPage->GetErrors(),
@@ -196,6 +201,8 @@ class PayplusInstance
     }
 
     public static function RemoteInput($params){
+        global $_LANG;
+        $translations = self::getTranslation(substr($_LANG['locale'],0,2));
         PayplusBase::$apiKey = $params['apiKey'];
         PayplusBase::$secretKey = $params['secretKey'];
         PayplusBase::$devMode = ($params['devMode'] == 'on');
@@ -216,7 +223,6 @@ class PayplusInstance
         $customer = [
             'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
             'email' => $params['clientdetails']['email'],
-            'vat_number' => $params['clientdetails']['tax_id'],
             'phone' => $params['clientdetails']['phonenumber'],
             'country_iso' => $params['clientdetails']['countrycode'],
             'city' => $params['clientdetails']['city'],
@@ -252,7 +258,16 @@ class PayplusInstance
                 })
             </script>';
         } else {
-            return $paymentPage->GetErrors();
+            $errors = $paymentPage->GetErrors();
+            $html = '<div style="color:red;">'. $translations['Operation encountered the following error/s'];
+            $html .= '<ul>';
+            if (in_array('vat-id-not-valid',$errors)) {
+                $html .= '<li>'.$translations['invalid_tax_id'].'</li>';
+            }
+            $html .= '</ul>';
+            $html .= '</div>';
+
+            return $html;
         }
     }
     public static function Refund($params){
@@ -330,9 +345,13 @@ class PayplusInstance
         $translations = [];
         $translations['coupon-discount'] = 'Coupon discount';
         $translations['rounding-difference'] = 'Rounding difference';
+        $translations['Operation encountered the following error/s'] = 'Operation encountered the following error/s';
+        $translations['invalid_tax_id'] = 'Invalid vat number/ID';
         if ($lang == 'he') {
             $translations['coupon-discount'] = 'הנחת קופון';
             $translations['rounding-difference'] = 'הפרש עיגול';
+            $translations['Operation encountered the following error/s'] = 'שגיאה';
+            $translations['invalid_tax_id'] = 'ת"ז/ח"פ שגויים';
         }
         return $translations;
     }

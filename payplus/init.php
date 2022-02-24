@@ -24,3 +24,14 @@ $gatewayHashes = [
     md5('payplus')=> 'payplus',
     md5('payplusnew')=> 'payplusnew'
 ];
+
+add_hook('ClientAreaFooterOutput', 1, function($vars) {
+    $captchaData = WHMCS\Session::getAndDelete("credit-card-error");
+    if ($captchaData) {
+        $html = "<script>";
+        $html .= "jQuery('.gateway-errors').html(`$captchaData`);";
+        $html .= "jQuery('.gateway-errors').removeClass(`w-hidden`);";
+        $html .= "</script>";
+        return $html;
+    }
+});
