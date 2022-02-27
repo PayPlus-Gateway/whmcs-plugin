@@ -26,10 +26,10 @@ $gatewayHashes = [
 ];
 
 add_hook('ClientAreaFooterOutput', 1, function($vars) {
-    $captchaData = WHMCS\Session::getAndDelete("credit-card-error");
-    if ($captchaData) {
+    $creditCardError = WHMCS\Session::getAndDelete("credit-card-error");
+    if ($creditCardError) {
         $html = "<script>";
-        $html .= "jQuery('.gateway-errors').html(`$captchaData`);";
+        $html .= "jQuery('.gateway-errors').html(`$creditCardError`);";
         $html .= "jQuery('.gateway-errors').removeClass(`w-hidden`);";
         $html .= "</script>";
         return $html;

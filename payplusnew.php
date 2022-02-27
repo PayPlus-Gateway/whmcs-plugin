@@ -10,7 +10,6 @@ if (!defined("WHMCS")) {
 }
 PayplusInstance::$DisplayName = "New PayPlus Gateway";
 PayplusInstance::$GatewayName = "payplusnew";
-
 PayplusInstance::$GatewayNameMeta = "New PayPlus";
 
 function payplusnew_MetaData()
