@@ -55,7 +55,6 @@ if (!$_REQUEST['token_uid'] || !$_REQUEST['terminal_uid']) {
     logModuleCall($gatewayModuleName, CURRENT_DEBUG_ACTION, $debugData,'Missing either token_uid or terminal_uid');
     die;
 }
-
 $tokenData = $_REQUEST['token_uid'];
 if (
     $requestedUserID !== null

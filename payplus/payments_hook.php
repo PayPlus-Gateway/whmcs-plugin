@@ -88,8 +88,13 @@ if(is_array($enabled)){
 }
 $gatewayModuleName = 'payplus';
 $valid = true;
-$gatewayParams = getGatewayVariables('payplus');
-if($gatewayParams['enable_payments'] === 'on'){
+try {
+	$gatewayParams = getGatewayVariables('payplus');
+} catch (\Throwable $th) {
+	//throw $th;
+}
+
+if($gatewayParams && $gatewayParams['enable_payments'] === 'on'){
 	add_hook('AdminAreaFooterOutput', 0, 'add_payments_payplus_gateway');
 	add_hook('AdminAreaClientSummaryPage', 10, 'smartpayplus_hook_AdminAreaClientSummaryPage');
 }

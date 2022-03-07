@@ -1,7 +1,7 @@
 <?php
 
 require_once "debug.php";
-define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.4");
+define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.5");
 define('PASSPHRASE','OanN&&TAp4U9vt@1*0c%OvjyI');
 define('ENCRYPTION_ALGORITHM','AES-256-CBC');
 define('REMOTE_STORE_ACTION_DELETE','delete');
@@ -24,14 +24,15 @@ $gatewayHashes = [
     md5('payplus')=> 'payplus',
     md5('payplusnew')=> 'payplusnew'
 ];
-
-add_hook('ClientAreaFooterOutput', 1, function($vars) {
-    $creditCardError = WHMCS\Session::getAndDelete("credit-card-error");
-    if ($creditCardError) {
-        $html = "<script>";
-        $html .= "jQuery('.gateway-errors').html(`$creditCardError`);";
-        $html .= "jQuery('.gateway-errors').removeClass(`w-hidden`);";
-        $html .= "</script>";
-        return $html;
-    }
-});
+if (function_exists('add_hook')){
+    add_hook('ClientAreaFooterOutput', 1, function($vars) {
+        $creditCardError = WHMCS\Session::getAndDelete("credit-card-error");
+        if ($creditCardError) {
+            $html = "<script>";
+            $html .= "jQuery('.gateway-errors').html(`$creditCardError`);";
+            $html .= "jQuery('.gateway-errors').removeClass(`w-hidden`);";
+            $html .= "</script>";
+            return $html;
+        }
+    });
+} 
