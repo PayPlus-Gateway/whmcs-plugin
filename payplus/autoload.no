@@ -1,0 +1,12 @@
+<?php
+
+require_once "vendor/payplus-gateway/payplus-api/src/PayplusBase.php";
+require_once "vendor/payplus-gateway/payplus-api/src/PaymentPageBase.php";
+require_once "vendor/payplus-gateway/payplus-api/src/PaymentPage.php";
+require_once "vendor/payplus-gateway/payplus-api/src/ChargeMethods.php";
+require_once "vendor/payplus-gateway/payplus-api/src/ChargeByTransactionUID.php";
+require_once "vendor/payplus-gateway/payplus-api/src/Ipn.php";
+require_once "vendor/payplus-gateway/payplus-api/src/TokenPay.php";
+require_once "vendor/payplus-gateway/payplus-api/src/Tokens/Remove.php";
+require_once "vendor/payplus-gateway/payplus-api/src/Tokens/Update.php";
+require_once "vendor/payplus-gateway/payplus-api/src/Tokens/View.php";
