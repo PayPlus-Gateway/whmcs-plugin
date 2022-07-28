@@ -87,10 +87,15 @@ abstract class PayplusBase {
         if ($commandAndMethod->method != 'GET' && $payload !== null) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
         }
-        $response = curl_exec($ch);
+        $rawResponse = curl_exec($ch);
         curl_close($ch);
-        $response = json_decode($response);
+        $response = json_decode($rawResponse);
         $result = new \stdClass;
+        if ($response === null) {
+            $result->success = 0;
+            $result->result = $rawResponse;
+            return $result;
+        }
         if (isset($response->results->status) && $response->results->status == 'success') {
             $result->success = 1;
             $result->result = $response->data;

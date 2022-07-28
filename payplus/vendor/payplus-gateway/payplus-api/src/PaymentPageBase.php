@@ -74,6 +74,7 @@ abstract class PaymentPageBase extends PayplusBase {
             'cell_phone',
             'address',
             'city',
+            'postal_code',
             'country_iso',
         ]);
         return true;
