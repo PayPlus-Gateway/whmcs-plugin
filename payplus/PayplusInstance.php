@@ -167,7 +167,17 @@ class PayplusInstance
             'address' => $params['clientdetails']['address1'],
         ];
         if ($params['vat_id_field_name']) {
-            $customer['vat_number'] = $params['clientdetails'][$params['vat_id_field_name']];
+            $vatNumber =$params['clientdetails'][$params['vat_id_field_name']];
+            $numberCharacter =strlen($vatNumber);
+            if($numberCharacter<9){
+                $numberCharacter  = 9-$numberCharacter;
+                $beforeVatId ="";
+                for($i=0;$i<$numberCharacter;$i++){
+                    $beforeVatId.="0";
+                }
+                $vatNumber= $beforeVatId .$vatNumber;
+            }
+            $customer['vat_number'] =$vatNumber;
         }
         $paymentPage->SetCustomer($customer);
         if ($params['move_token'] === 'on') {
@@ -229,7 +239,17 @@ class PayplusInstance
             'address' => $params['clientdetails']['address1'],
         ];
         if ($params['vat_id_field_name']) {
-            $customer['vat_number'] = $params['clientdetails'][$params['vat_id_field_name']];
+            $vatNumber =$params['clientdetails'][$params['vat_id_field_name']];
+            $numberCharacter =strlen($vatNumber);
+            if($numberCharacter<9){
+                $numberCharacter  = 9-$numberCharacter;
+                $beforeVatId ="";
+                for($i=0;$i<$numberCharacter;$i++){
+                    $beforeVatId.="0";
+                }
+                $vatNumber= $beforeVatId .$vatNumber;
+            }
+            $customer['vat_number'] =$vatNumber;
         }
         $paymentPage->SetCustomer($customer);
         $userID = openssl_encrypt($clientDetails['userid'], ENCRYPTION_ALGORITHM, PASSPHRASE);
