@@ -8,7 +8,7 @@ abstract class PaymentPageBase extends PayplusBase {
     protected $__shipping;
     protected $__customer;
     protected $__secure3d;
-
+    protected $external_recurring_payment;
     public $amount;
     public $currency_code;
     public $charge_method;
@@ -57,7 +57,12 @@ abstract class PaymentPageBase extends PayplusBase {
         }
         return true;
     }
+    public  function  set_external_recurring_payment(array $data){
 
+        $this->external_recurring_payment = $this->initObject($data,['external_recurring_id','external_recurring_charge_id','external_recurring_type','external_recurring_range']);
+        return true;
+
+    }
     public function SetCustomer(array $data) {
         if (!$data['customer_name'] || !isset($data['email'])) {
             return false;
@@ -159,7 +164,9 @@ abstract class PaymentPageBase extends PayplusBase {
         if ($this->__secure3d) {
             $payload['secure3d'] = $this->__secure3d;
         }
-
+        if (!empty($this->external_recurring_payment)) {
+            $payload['external_recurring_payment'] = $this->external_recurring_payment;
+        }
         return $payload;
     }
 

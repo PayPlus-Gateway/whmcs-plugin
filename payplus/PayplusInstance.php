@@ -91,7 +91,57 @@ class PayplusInstance
             )
         ];
     }
+    public static  function  getRecurring($invoiceId){
+        $table = "tblinvoiceitems";
+        $fields = "relid";
+        $where = array("invoiceid"=>$invoiceId);
+        $result = select_query($table,$fields,$where);
+        $recurring=false;
+        while ($row =mysql_fetch_array($result)){
 
+            $table = "tblhosting";
+            $fields = "id,billingcycle";
+            $where = array("id"=>$row['relid']);
+            $resultCycle = select_query($table,$fields,$where);
+            $resultCycle =mysql_fetch_array($resultCycle);
+
+            if(!empty($resultCycle['billingcycle']) && $resultCycle['billingcycle']!=="One Time"){
+                switch ($resultCycle['billingcycle']) {
+
+                    case 'Monthly':
+                        $externalRecurringRange = 1;
+                        break;
+                    case 'Quarterly':
+                        $externalRecurringRange = 3;
+                        break;
+                    case 'Semi-Annually':
+                        $externalRecurringRange = 6;
+                        break;
+                    case 'Annually':
+                        $externalRecurringRange = 12;
+                        break;
+                    case 'Biennially':
+                        $externalRecurringRange = 24;
+                        break;
+                    case 'Triennially':
+                        $externalRecurringRange = 36;
+                        break;
+                }
+
+                $recurring =array(
+                    "external_recurring_id"=> $resultCycle['id'],
+                    "external_recurring_charge_id" => $invoiceId,
+                    "external_recurring_type"=>1,
+                    "external_recurring_range"=>$externalRecurringRange
+
+                );
+                return $recurring;
+            }
+
+        }
+        return $recurring;
+
+    }
     public static function Capture($params){
         global $_LANG;
         $translations = self::getTranslation(substr($_LANG['locale'],0,2));
@@ -114,6 +164,10 @@ class PayplusInstance
         $numPayments = $_REQUEST['payments'] ?? null;
         if (ADMINAREA && $numPayments && $numPayments > 1) {
             $paymentPage->payments = $numPayments;
+        }
+        $recurring =self::getRecurring($params['invoiceid']);
+        if($recurring){
+            $paymentPage->set_external_recurring_payment($recurring);
         }
         $total = 0;
         $taxCalculator = $params['cart']->getTaxCalculator($params['cart']->client);
