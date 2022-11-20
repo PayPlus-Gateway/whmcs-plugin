@@ -131,7 +131,7 @@ class PayplusInstance
                 $recurring =array(
                     "external_recurring_id"=> $resultCycle['id'],
                     "external_recurring_charge_id" => $invoiceId,
-                    "external_recurring_type"=>1,
+                    "external_recurring_type"=>2,
                     "external_recurring_range"=>$externalRecurringRange
 
                 );

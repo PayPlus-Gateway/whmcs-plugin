@@ -8,3 +8,4 @@
 !/payplus/init.php
 !.gitignore
 payplus/autoload.php
+.idea
