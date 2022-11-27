@@ -88,7 +88,12 @@ class PayplusInstance
                 'FriendlyName' => 'Move token',
                 'Type' => 'yesno',
                 'Description' => 'Tick to send the move_token parameter with transactions',
-            )
+            ),
+            'charge_token' => array(
+                'FriendlyName' => 'Charge Token',
+                'Type' => 'yesno',
+                'Description' => 'If you want to charge a deal while making token',
+    )
         ];
     }
     public static  function  getRecurring($invoiceId){
@@ -134,7 +139,7 @@ class PayplusInstance
                     "external_recurring_type"=>2,
                     "external_recurring_range"=>$externalRecurringRange
 
-                );
+                    );
                 return $recurring;
             }
 
@@ -142,7 +147,9 @@ class PayplusInstance
         return $recurring;
 
     }
+
     public static function Capture($params){
+
         global $_LANG;
         $translations = self::getTranslation(substr($_LANG['locale'],0,2));
         PayplusBase::$apiKey = $params['apiKey'];
@@ -170,8 +177,12 @@ class PayplusInstance
             $paymentPage->set_external_recurring_payment($recurring);
         }
         $total = 0;
+
         $taxCalculator = $params['cart']->getTaxCalculator($params['cart']->client);
+
+
         foreach($params['cart']->getInvoiceModel()->lineItems as $item) {
+
             $itemLine = [
                 'price' => $item->amount,
                 'name' => $item->description,
@@ -220,35 +231,34 @@ class PayplusInstance
             'city' => $params['clientdetails']['city'],
             'address' => $params['clientdetails']['address1'],
         ];
+
         if ($params['vat_id_field_name']) {
             $vatNumber =$params['clientdetails'][$params['vat_id_field_name']];
             if(!empty($vatNumber)){
-                $numberCharacter =strlen($vatNumber);
-                if($numberCharacter<9){
-                    $numberCharacter  = 9-$numberCharacter;
-                    $beforeVatId ="";
-                    for($i=0;$i<$numberCharacter;$i++){
-                        $beforeVatId.="0";
-                    }
-                    $vatNumber= $beforeVatId .$vatNumber;
-                }
-                $customer['vat_number'] =$vatNumber;
+                $customer['vat_number']=PayplusBase::getNumberId($vatNumber);
             }
 
         }
+
         $paymentPage->SetCustomer($customer);
         if ($params['move_token'] === 'on') {
             $paymentPage->move_token = true;
         }
         $paymentPage->more_info = $params['invoiceid'];
         $paymentPage->charge_method = ChargeMethods::CHARGE;
+
         $paymentPage->Go();
+
+        //paymentPage roee;
+
         if ($paymentPage->IsSuccess()) {
+
             return [
                 'status' => 'success',
                 'transid' => $paymentPage->Response->result->number
             ];
         }
+
         logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
             'error'=>$paymentPage->GetErrors(),
             'payload'=>$paymentPage->GetPayload()        
@@ -268,6 +278,8 @@ class PayplusInstance
     }
 
     public static function RemoteInput($params){
+
+
         global $_LANG;
         $translations = self::getTranslation(substr($_LANG['locale'],0,2));
         PayplusBase::$apiKey = $params['apiKey'];
@@ -279,14 +291,17 @@ class PayplusInstance
         $clientDetails = $params['clientdetails'];
         $paymentPage = new PaymentPage;
         $currencyCode = 'ILS';
+        $chargeToken =($params['charge_token']=="on")?true:false;
+
         if ($params['clientdetails']['model'] && method_exists($params['clientdetails']['model'],'getCurrencyCodeAttribute')) {
             $currencyCode = $params['clientdetails']['model']->getCurrencyCodeAttribute();
         }
         $paymentPage->Init([
             'payment_page_uid' =>  $params['paymentPageUID'],
             'currency_code' => $currencyCode,
-            'amount' => 0
+            'amount' => (!empty($params['amount'] )&& $chargeToken)?$params['amount']:0,
         ]);
+
         $customer = [
             'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
             'email' => $params['clientdetails']['email'],
@@ -295,19 +310,11 @@ class PayplusInstance
             'city' => $params['clientdetails']['city'],
             'address' => $params['clientdetails']['address1'],
         ];
+
         if ($params['vat_id_field_name']) {
             $vatNumber =$params['clientdetails'][$params['vat_id_field_name']];
             if(!empty($vatNumber)){
-                $numberCharacter =strlen($vatNumber);
-                if($numberCharacter<9){
-                    $numberCharacter  = 9-$numberCharacter;
-                    $beforeVatId ="";
-                    for($i=0;$i<$numberCharacter;$i++){
-                        $beforeVatId.="0";
-                    }
-                    $vatNumber= $beforeVatId .$vatNumber;
-                }
-                $customer['vat_number'] =$vatNumber;
+                $customer['vat_number']=PayplusBase::getNumberId($vatNumber);
             }
 
         }
@@ -319,6 +326,68 @@ class PayplusInstance
         $get['g'] = md5(self::$GatewayName);
         if ($params['invoiceid']) {
             $get['invoiceid'] = $params['invoiceid'];
+
+        }
+        $paymentPage->charge_method = ChargeMethods::TOKEN;
+        //payment invoice
+
+        if($chargeToken && !empty($params['amount'])) {
+
+            if ($params['invoiceid']) {
+                $recurring =self::getRecurring($params['invoiceid']);
+                if($recurring){
+                    $paymentPage->set_external_recurring_payment($recurring);
+                }
+            }
+
+            $total = 0;
+
+            $taxCalculator = $params['cart']->getTaxCalculator($params['cart']->client);
+
+
+            foreach ($params['cart']->getInvoiceModel()->lineItems as $item) {
+
+                $itemLine = [
+                    'price' => $item->amount,
+                    'name' => $item->description,
+                    'quantity' => 1
+                ];
+
+                if (
+                    WHMCS\Config\Setting::getValue("TaxEnabled")
+                    && $item->taxed
+                    && !$params['cart']->client->taxExempt
+                ) {
+                    $itemLine['price'] = $taxCalculator->setTaxBase($item->amount)->getTotalAfterTaxes();
+                }
+
+                $paymentPage->AddItem($itemLine);
+                $total += $itemLine['price'];
+            }
+
+            $credit = (float)$params['cart']->getInvoiceModel()->getAttribute('credit');
+            if ($credit > 0) {
+                $itemLine = [
+                    'price' => $credit * -1,
+                    'name' => 'Credit',
+                    'quantity' => 1
+                ];
+                $paymentPage->AddItem($itemLine);
+                $total -= $credit;
+            }
+
+            $paramsAmount = $params['amount'] * 100;
+            $totalC = $total * 100;
+            $diff = $paramsAmount - $totalC;
+            if (abs($diff) == 1) {
+                $paymentPage->AddItem([
+                    'price' => $diff / 100,
+                    'quantity' => 1,
+                    'name' => $translations['rounding-difference']
+                ]);
+            }
+            $paymentPage->charge_method = ChargeMethods::CHARGE;
+
         }
         if (ADMINAREA === true) {
             $get['adminarea'] = 1;
@@ -326,8 +395,9 @@ class PayplusInstance
         if (!empty($get)) {
             $paymentPage->refURL_success .= '?' . http_build_query($get);
         }
-        $paymentPage->charge_method = ChargeMethods::TOKEN;
+
         $paymentPage->create_token = true;
+
     
         if ($paymentPage->Go()->IsSuccess()) {
             return '
@@ -339,6 +409,8 @@ class PayplusInstance
             </script>';
         } else {
             $errors = $paymentPage->GetErrors();
+
+
             $html = '<div style="color:red;">'. $translations['Operation encountered the following error/s'];
             $html .= '<ul>';
             if (in_array('vat-id-not-valid',$errors)) {
@@ -376,6 +448,8 @@ class PayplusInstance
         return $result;
     }
     public static function RemoteStore($params){
+
+
         PayplusBase::$apiKey = $params['apiKey'];
         PayplusBase::$secretKey = $params['secretKey'];
         PayplusBase::$devMode = ($params['devMode'] == 'on');

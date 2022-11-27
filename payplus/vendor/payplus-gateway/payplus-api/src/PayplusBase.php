@@ -26,6 +26,19 @@ abstract class PayplusBase {
             throw new \Exception('missing-api-credentials');
         }
     }
+    public  static function getNumberId($numberId){
+        $numberCharacter =strlen($numberId);
+        if($numberCharacter<9){
+            $numberCharacter  = 9-$numberCharacter;
+            $beforeVatId ="";
+            for($i=0;$i<$numberCharacter;$i++){
+                $beforeVatId.="0";
+            }
+            $numberId= $beforeVatId .$numberId;
+        }
+        return $numberId;
+    }
+
     public function Go() {
         $this->actionPerformed = true;
         $this->payload = $this->createPayload();
@@ -34,7 +47,7 @@ abstract class PayplusBase {
             return $this;
         }
         $this->Response = $this->makeRequest($this->payload);
-        
+
         if ($this->Response->success == 1) {
             $this->successfulResponse($this->Response);
         } elseif(self::$errorCallback) {
@@ -46,6 +59,7 @@ abstract class PayplusBase {
     
     public static function SetErrorCallback($fn) {
         self::$errorCallback = $fn;
+
     }
 
     public function GetPayload() {
@@ -58,6 +72,7 @@ abstract class PayplusBase {
 
     private function getAccessAddress() {
         $commandAndMethod = $this->GetCommandAndMethod();
+
         $addr = '';
         if (self::$devMode === true) {
             $addr = self::$DEV_ADDRESS;
@@ -68,6 +83,8 @@ abstract class PayplusBase {
     }
 
     protected function makeRequest($payload = null) {
+
+
         $commandAndMethod = $this->GetCommandAndMethod();
         $authorization = [
             'api_key'=>self::$apiKey,
@@ -78,6 +95,7 @@ abstract class PayplusBase {
             'Content-Type:application/json',
             'Authorization: '.json_encode($authorization),
         ]);
+
         curl_setopt($ch, CURLOPT_USERAGENT, 'WHMCS-PP-87 '.$_SERVER['HTTP_USER_AGENT']);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
