@@ -56,7 +56,6 @@ abstract class PayplusBase {
         }
         return $this;
     }
-    
     public static function SetErrorCallback($fn) {
         self::$errorCallback = $fn;
 

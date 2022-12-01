@@ -1,7 +1,7 @@
 <?php
 
 require_once "debug.php";
-define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.9");
+define("PAYLUS_GATEWAY_MODULE_VERSION","1.0.10");
 define('PASSPHRASE','OanN&&TAp4U9vt@1*0c%OvjyI');
 define('ENCRYPTION_ALGORITHM','AES-256-CBC');
 define('REMOTE_STORE_ACTION_DELETE','delete');

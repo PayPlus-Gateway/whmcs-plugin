@@ -1,4 +1,5 @@
 <?php
+define('CURRENT_DEBUG_ACTION','return.php');
 /*
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -10,8 +11,7 @@ require_once __DIR__ . '/../../../includes/clientfunctions.php';
 require_once __DIR__ . '/../../../includes/adminfunctions.php';
 
 require_once "vendor/autoload.php";
-
-
+logTransaction('payplusnew', $_REQUEST, CURRENT_DEBUG_ACTION);
 if (!$_REQUEST['g'] || !array_key_exists($_REQUEST['g'],$gatewayHashes)) {
     $gatewayModuleName = 'payplus';
 } else {
@@ -36,7 +36,7 @@ if ($_REQUEST['issuer_id'] && array_key_exists($_REQUEST['issuer_id'],$cardNames
     $cardName = $cardNames[$_REQUEST['issuer_id']];
 }
 
-define('CURRENT_DEBUG_ACTION','return.php');
+
 $gatewayParams = getGatewayVariables($gatewayModuleName);
 $debugData = $_REQUEST;
 $debugData['IS_ADMIN_AREA'] = IS_ADMIN_AREA;
@@ -122,8 +122,6 @@ if ($invoiceID) {
     if(!empty($post['status'])&& !empty($post['status_code']) && !empty( $post['type'])
         && $post['status']==="approved" && $post['status_code']==="000" &&  $post['type']==="Charge"){
 
-        $gatewayModuleName = 'payplus';
-        logModuleCall($gatewayModuleName, CURRENT_DEBUG_ACTION, $_REQUEST, 'charge' .$gatewayModuleName);
         $date =new DateTime();
         $date = $date->format('Y-m-d');
         $command = 'UpdateInvoice';
@@ -133,7 +131,6 @@ if ($invoiceID) {
             'datepaid' =>$date);
 
         $updateInvoice = localAPI($command, $postData);
-        logModuleCall($gatewayModuleName, CURRENT_DEBUG_ACTION, $updateInvoice, 'UpdateInvoice' .$gatewayModuleName);
 
     }
 

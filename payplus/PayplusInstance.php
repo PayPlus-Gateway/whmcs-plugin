@@ -90,9 +90,9 @@ class PayplusInstance
                 'Description' => 'Tick to send the move_token parameter with transactions',
             ),
             'charge_token' => array(
-                'FriendlyName' => 'Charge Token',
-                'Type' => 'yesno',
-                'Description' => 'If you want to charge a deal while making token',
+        'FriendlyName' => 'Charge Token',
+        'Type' => 'yesno',
+        'Description' => 'If you want to charge a deal while making token',
     )
         ];
     }
@@ -252,13 +252,13 @@ class PayplusInstance
         //paymentPage roee;
 
         if ($paymentPage->IsSuccess()) {
-
+            logTransaction('payplusnew', $paymentPage->Response, 'Success');
             return [
                 'status' => 'success',
                 'transid' => $paymentPage->Response->result->number
             ];
         }
-
+        logTransaction('payplusnew', $paymentPage->Response->result, 'declined');
         logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
             'error'=>$paymentPage->GetErrors(),
             'payload'=>$paymentPage->GetPayload()        
@@ -409,13 +409,14 @@ class PayplusInstance
             </script>';
         } else {
             $errors = $paymentPage->GetErrors();
-
+            logTransaction('payplusnew', $paymentPage->Response, 'declined');
 
             $html = '<div style="color:red;">'. $translations['Operation encountered the following error/s'];
             $html .= '<ul>';
             if (in_array('vat-id-not-valid',$errors)) {
                 $html .= '<li>'.$translations['invalid_tax_id'].'</li>';
             }
+            $html .= '<li>'. $paymentPage->Response->result.'</li>';
             $html .= '</ul>';
             $html .= '</div>';
 
@@ -437,10 +438,12 @@ class PayplusInstance
         ]);
         $result  = [];
         if ($refund->Go()->IsSuccess()) {
+            logTransaction('payplusnew',  $refund->details, 'Success');
             $result['status'] = 'success';
             $result['rawdata'] = '';
             $result['transid'] = $refund->details->uid;
         } else {
+            logTransaction('payplusnew',  $refund->details, 'Declined');
             $result['status'] = 'error';
             $result['rawdata'] = '';
             $result['transid'] = 0;
@@ -480,16 +483,19 @@ class PayplusInstance
                 ]);
                 $exp = \WHMCS\Carbon::createFromDate($params['cardExpiryYear'], $params['cardExpiryMonth'], 1);
                 if ($updateToken->Go()->IsSuccess()) {
+                    logTransaction('payplusnew',  $updateToken->Response, 'Success');
                     $payment->setExpiryDate($exp);
                     $payment->save();
                     return [
                         'status' => 'success',
                         'gatewayid'=>$tokenUID
                     ];
+                }else{
+                    logTransaction('payplusnew',  $updateToken->Response, 'Declined');
                 }
                 break;
         }
-    
+
         return [
             'status' => 'failed'
         ];
