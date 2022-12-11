@@ -96,6 +96,17 @@ class PayplusInstance
     )
         ];
     }
+    public  static function  updateNextDueDate($invoiceId){
+       $recurring = self::getRecurring($invoiceId);
+       $date = new DateTime();
+       $date=$date->modify("+" .$recurring['external_recurring_range'] ." month");
+       $date =$date->format('Y-m-d');
+        $table = "tblhosting";
+        $update = array("nextduedate"=>$date);
+        $where = array("id"=>$recurring['external_recurring_id']);
+        update_query($table,$update,$where);
+
+    }
     public static  function  getRecurring($invoiceId){
         $table = "tblinvoiceitems";
         $fields = "relid";
@@ -335,6 +346,7 @@ class PayplusInstance
 
             if ($params['invoiceid']) {
                 $recurring =self::getRecurring($params['invoiceid']);
+
                 if($recurring){
                     $paymentPage->set_external_recurring_payment($recurring);
                 }
