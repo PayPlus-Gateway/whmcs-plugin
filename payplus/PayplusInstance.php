@@ -96,17 +96,20 @@ class PayplusInstance
     )
         ];
     }
-    public  static function  updateNextDueDate($invoiceId){
-       $recurring = self::getRecurring($invoiceId);
-       $date = new DateTime();
-       $date=$date->modify("+" .$recurring['external_recurring_range'] ." month");
-       $date =$date->format('Y-m-d');
-        $table = "tblhosting";
-        $update = array("nextduedate"=>$date);
-        $where = array("id"=>$recurring['external_recurring_id']);
-        update_query($table,$update,$where);
+    public  static function updateTblHosting($invoiceId,$status){
+        if(!empty($status)){
+            $recurring = self::getRecurring($invoiceId);
+            $date = new DateTime();
+            $date=$date->modify("+" .$recurring['external_recurring_range'] ." month");
+            $date =$date->format('Y-m-d');
+            $table = "tblhosting";
+            $update = array("nextduedate"=>$date,'domainstatus'=>$status);
+            $where = array("id"=>$recurring['external_recurring_id']);
+            update_query($table,$update,$where);
+        }
 
     }
+
     public static  function  getRecurring($invoiceId){
         $table = "tblinvoiceitems";
         $fields = "relid";
@@ -160,6 +163,7 @@ class PayplusInstance
     }
 
     public static function Capture($params){
+
 
         global $_LANG;
         $translations = self::getTranslation(substr($_LANG['locale'],0,2));
@@ -263,7 +267,7 @@ class PayplusInstance
         //paymentPage roee;
 
         if ($paymentPage->IsSuccess()) {
-            logTransaction('payplusnew', $paymentPage->Response, 'Success');
+           logTransaction('payplusnew', $paymentPage->Response, 'Success');
             return [
                 'status' => 'success',
                 'transid' => $paymentPage->Response->result->number

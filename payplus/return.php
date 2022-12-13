@@ -131,7 +131,7 @@ if ($invoiceID) {
             'datepaid' =>$date);
 
         $updateInvoice = localAPI($command, $postData);
-        PayplusInstance::updateNextDueDate($invoiceID);
+        PayplusInstance::updateTblHosting($invoiceID,'Active');
     }
 
     redirSystemURL('', "/invoice/" . $invoiceID . "/pay");
