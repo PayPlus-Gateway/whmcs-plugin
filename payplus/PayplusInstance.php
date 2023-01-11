@@ -109,17 +109,39 @@ class PayplusInstance
         }
 
     }
-
-    public static  function  getRecurring($invoiceId){
+    public static  function  getOrderId($invoiceId){
         $table = "tblinvoiceitems";
         $fields = "relid";
         $where = array("invoiceid"=>$invoiceId);
         $result = select_query($table,$fields,$where);
+
+        $orderId=false;
+        while ($row =mysql_fetch_array($result)){
+
+            $table = "tblhosting";
+            $fields = "orderid";
+            $where = array("id"=>$row['relid']);
+            $resultCycle = select_query($table,$fields,$where);
+            $resultCycle =mysql_fetch_array($resultCycle);
+            if(!empty($resultCycle)){
+
+                return $resultCycle['orderid'];
+            }
+        }
+        return $orderId;
+    }
+    public static  function  getRecurring($invoiceId){
+
+        $table = "tblinvoiceitems";
+        $fields = "relid";
+        $where = array("invoiceid"=>$invoiceId);
+        $result = select_query($table,$fields,$where);
+
         $recurring=false;
         while ($row =mysql_fetch_array($result)){
 
             $table = "tblhosting";
-            $fields = "id,billingcycle";
+            $fields = "id,billingcycle,orderid";
             $where = array("id"=>$row['relid']);
             $resultCycle = select_query($table,$fields,$where);
             $resultCycle =mysql_fetch_array($resultCycle);
@@ -163,8 +185,6 @@ class PayplusInstance
     }
 
     public static function Capture($params){
-
-
         global $_LANG;
         $translations = self::getTranslation(substr($_LANG['locale'],0,2));
         PayplusBase::$apiKey = $params['apiKey'];
@@ -175,6 +195,7 @@ class PayplusInstance
         }
         $params['gatewayid'] = explode(TOKEN_TERMINAL_SEPARATOR, $params['gatewayid']);
         $params['gatewayid'] = $params['gatewayid'][0];
+
         $paymentPage = new TokenPay;
         $paymentPage->Init([
             'payment_page_uid' =>  $params['paymentPageUID'],
@@ -264,7 +285,7 @@ class PayplusInstance
 
         $paymentPage->Go();
 
-        //paymentPage roee;
+
 
         if ($paymentPage->IsSuccess()) {
            logTransaction('payplusnew', $paymentPage->Response, 'Success');
@@ -405,6 +426,9 @@ class PayplusInstance
             $paymentPage->charge_method = ChargeMethods::CHARGE;
 
         }
+
+
+
         if (ADMINAREA === true) {
             $get['adminarea'] = 1;
         }
@@ -467,6 +491,7 @@ class PayplusInstance
         return $result;
     }
     public static function RemoteStore($params){
+
 
 
         PayplusBase::$apiKey = $params['apiKey'];

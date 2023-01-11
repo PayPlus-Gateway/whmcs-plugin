@@ -9,7 +9,6 @@ require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 require_once __DIR__ . '/../../../includes/clientfunctions.php';
 require_once __DIR__ . '/../../../includes/adminfunctions.php';
-
 require_once "vendor/autoload.php";
 logTransaction('payplusnew', $_REQUEST, CURRENT_DEBUG_ACTION);
 if (!$_REQUEST['g'] || !array_key_exists($_REQUEST['g'],$gatewayHashes)) {
@@ -114,12 +113,11 @@ if (IS_ADMIN_AREA === true) {
     redirSystemURL(['userid' => $requestedUserID], $adminPrefix."/clientssummary.php");
 }
 if ($invoiceID) {
-    $post  =$_REQUEST;
+  /*  $post  =$_REQUEST;
 
+ //payment invoice
 
-    //payment invoice
-
-    if(!empty($post['status'])&& !empty($post['status_code']) && !empty( $post['type'])
+   if(!empty($post['status'])&& !empty($post['status_code']) && !empty( $post['type'])
         && $post['status']==="approved" && $post['status_code']==="000" &&  $post['type']==="Charge"){
 
         $date =new DateTime();
@@ -129,12 +127,19 @@ if ($invoiceID) {
             'invoiceid' => $invoiceID,
             'status' => 'Paid',
             'datepaid' =>$date);
+        $orderId =PayplusInstance::getOrderId($invoiceID);
 
         $updateInvoice = localAPI($command, $postData);
         PayplusInstance::updateTblHosting($invoiceID,'Active');
-    }
-
+           $command = 'AcceptOrder';
+           $postData = array(
+               'orderid' => $orderId
+           );
+           $results = localAPI($command, $postData);
+           PayplusInstance::Capture($post,true);
+    }*/
     redirSystemURL('', "/invoice/" . $invoiceID . "/pay");
+
 }
 redirSystemURL('', "/account/paymentmethods");
 
