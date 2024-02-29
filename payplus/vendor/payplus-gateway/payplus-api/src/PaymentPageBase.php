@@ -29,6 +29,7 @@ abstract class PaymentPageBase extends PayplusBase {
     public $paying_vat;
     public $payments;
     public $payments_selected;
+    public $payments_first_amount;
     public $hide_identification_id;
     public $hide_payments_field;
     public $token;
@@ -140,6 +141,7 @@ abstract class PaymentPageBase extends PayplusBase {
             'paying_vat',
             'payments',
             'payments_selected',
+            'payments_first_amount',
             'hide_identification_id',
             'hide_payments_field',
             'token',

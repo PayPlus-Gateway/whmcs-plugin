@@ -113,13 +113,12 @@ if (IS_ADMIN_AREA === true) {
     redirSystemURL(['userid' => $requestedUserID], $adminPrefix."/clientssummary.php");
 }
 if ($invoiceID) {
-  /*  $post  =$_REQUEST;
+   $post  =$_REQUEST;
 
  //payment invoice
 
    if(!empty($post['status'])&& !empty($post['status_code']) && !empty( $post['type'])
-        && $post['status']==="approved" && $post['status_code']==="000" &&  $post['type']==="Charge"){
-
+        && $post['status']=="approved" && $post['status_code']=="000" &&  $post['type']=="Charge"){
         $date =new DateTime();
         $date = $date->format('Y-m-d');
         $command = 'UpdateInvoice';
@@ -128,16 +127,14 @@ if ($invoiceID) {
             'status' => 'Paid',
             'datepaid' =>$date);
         $orderId =PayplusInstance::getOrderId($invoiceID);
-
         $updateInvoice = localAPI($command, $postData);
         PayplusInstance::updateTblHosting($invoiceID,'Active');
-           $command = 'AcceptOrder';
-           $postData = array(
+        $command = 'AcceptOrder';
+        $postData = array(
                'orderid' => $orderId
-           );
-           $results = localAPI($command, $postData);
-           PayplusInstance::Capture($post,true);
-    }*/
+        );
+        $results = localAPI($command, $postData);
+    }
     redirSystemURL('', "/invoice/" . $invoiceID . "/pay");
 
 }

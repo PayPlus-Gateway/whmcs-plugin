@@ -42,6 +42,13 @@ class PayplusInstance
                 'Type' => 'yesno',
                 'Description' => 'Tick to enable payments',
             ),
+            'number_payment' => array(
+                'FriendlyName' => 'Number of payments',
+                'Type' => 'text',
+                'Default' => '3',
+                'Size' => '50',
+                'Description' => 'Number of payments',
+            ),
             'apiKey' => array(
                 'FriendlyName' => 'API Key',
                 'Type' => 'text',
@@ -90,11 +97,30 @@ class PayplusInstance
                 'Description' => 'Tick to send the move_token parameter with transactions',
             ),
             'charge_token' => array(
-        'FriendlyName' => 'Charge Token',
-        'Type' => 'yesno',
-        'Description' => 'If you want to charge a deal while making token',
-    )
+                'FriendlyName' => 'Charge Token',
+                'Type' => 'yesno',
+                'Description' => 'If you want to charge a deal while making token',
+             ),
+            'skip-checkout' => array(
+                'FriendlyName' => 'Enable auto submit payment',
+                'Type' => 'yesno',
+                'Description' => 'Enable auto submit payment (this option skips summary page)',
+            ),
+            'waiting-message' => array(
+                'FriendlyName' => 'Auto submit payment waiting message',
+                'Type' => 'text',
+                'Default'=>'Please wait, your transaction is being processed...',
+                'Description' => '',
+            )
         ];
+    }
+    public  static function updateTblOrders($invoiceId,$status='Active'){
+        if(!empty($status)){
+            $table = "tblorders";
+            $update = array('status'=>$status);
+            $where = array("invoiceid"=>$invoiceId);
+            update_query($table,$update,$where);
+        }
     }
     public  static function updateTblHosting($invoiceId,$status){
         if(!empty($status)){
@@ -282,18 +308,27 @@ class PayplusInstance
         }
         $paymentPage->more_info = $params['invoiceid'];
         $paymentPage->charge_method = ChargeMethods::CHARGE;
+        $payments = $_COOKIE['payments-payplus'];
 
+        if(!empty($payments)){
+           $paymentPage->payments_selected=$payments;
+           $paymentPage->payments=$payments;
+           $sumFirst =$params['amount']/$payments;
+           $paymentPage->payments_first_amount=$sumFirst;
+            unset($_COOKIE['payments-payplus']);
+            setcookie('payments-payplus', '', -1, '/');
+        }
         $paymentPage->Go();
 
-
-
         if ($paymentPage->IsSuccess()) {
-           logTransaction('payplusnew', $paymentPage->Response, 'Success');
+            PayplusInstance::updateTblOrders($params['invoiceid']);
+            logTransaction('payplusnew', $paymentPage->Response, 'Success');
             return [
                 'status' => 'success',
                 'transid' => $paymentPage->Response->result->number
             ];
         }
+
         logTransaction('payplusnew', $paymentPage->Response->result, 'declined');
         logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
             'error'=>$paymentPage->GetErrors(),
