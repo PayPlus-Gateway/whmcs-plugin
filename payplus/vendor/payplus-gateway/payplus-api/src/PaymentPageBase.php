@@ -2,12 +2,13 @@
 
 namespace PayplusGateway\PayplusApi;
 
-abstract class PaymentPageBase extends PayplusBase {
+abstract class PaymentPageBase extends PayplusBase
+{
     public $payment_page_uid;
     protected $__items = [];
     protected $__shipping;
     protected $__customer;
-    protected $__secure3d;
+    protected $__secure3d = ['activate' => false];
     protected $external_recurring_payment;
     public $amount;
     public $currency_code;
@@ -38,38 +39,42 @@ abstract class PaymentPageBase extends PayplusBase {
     protected function GetCommandAndMethod()
     {
         return (object)[
-            'command'=>'PaymentPages/generateLink',
-            'method'=>'POST'
+            'command' => 'PaymentPages/generateLink',
+            'method' => 'POST'
         ];
     }
-    
-    public function SetSecure3d(array $data) {
+
+    public function SetSecure3d(array $data)
+    {
         if (!isset($data['activate'])) {
             return false;
         }
         $this->__secure3d['activate'] = $data['activate'];
-        foreach([
-            'id',
-            'phone'
-        ] as $fld) {
+        foreach (
+            [
+                'id',
+                'phone'
+            ] as $fld
+        ) {
             if (isset($data[$fld])) {
                 $this->__secure3d[$fld] = $data[$fld];
             }
         }
         return true;
     }
-    public  function  set_external_recurring_payment(array $data){
+    public  function  set_external_recurring_payment(array $data)
+    {
 
-        $this->external_recurring_payment = $this->initObject($data,['external_recurring_id','external_recurring_charge_id','external_recurring_type','external_recurring_range']);
+        $this->external_recurring_payment = $this->initObject($data, ['external_recurring_id', 'external_recurring_charge_id', 'external_recurring_type', 'external_recurring_range']);
         return true;
-
     }
-    public function SetCustomer(array $data) {
+    public function SetCustomer(array $data)
+    {
         if (!$data['customer_name'] || !isset($data['email'])) {
             return false;
         }
 
-        $this->__customer = $this->initObject($data,[
+        $this->__customer = $this->initObject($data, [
             'customer_name',
             'email',
             'customer_uid',
@@ -86,12 +91,13 @@ abstract class PaymentPageBase extends PayplusBase {
         return true;
     }
 
-    public function AddItem(array $data) {
+    public function AddItem(array $data)
+    {
         if (!$data['name'] || !isset($data['quantity']) || !isset($data['price'])) {
             return false;
         }
 
-        $item = $this->initObject($data,[
+        $item = $this->initObject($data, [
             'name',
             'quantity',
             'price',
@@ -105,21 +111,22 @@ abstract class PaymentPageBase extends PayplusBase {
             'discount_value',
             'vat_type'
         ]);
-        
+
         $this->__items[] = $item;
         return true;
     }
 
-    public function SetShipping($name, $price) {
+    public function SetShipping($name, $price)
+    {
         $this->__shipping = [
-            "name" =>$name,
-            "price" =>$price
+            "name" => $name,
+            "price" => $price
         ];
     }
-    
+
     protected function createPayload()
     {
-        $payload = $this->initObject($this,[
+        $payload = $this->initObject($this, [
             'currency_code',
             'payment_page_uid',
             'amount',
@@ -153,17 +160,17 @@ abstract class PaymentPageBase extends PayplusBase {
         }
         if ($this->__shipping) {
             $payload['items'][] = [
-                'name'=>$this->__shipping['name'],
-                'price'=>$this->__shipping['price'],
-                'quantity'=>1,
-                'shipping'=>true
+                'name' => $this->__shipping['name'],
+                'price' => $this->__shipping['price'],
+                'quantity' => 1,
+                'shipping' => true
             ];
         }
 
         if ($this->__customer) {
             $payload['customer'] = $this->__customer;
         }
-        if ($this->__secure3d) {
+        if ($this->__secure3d && $this->token) {
             $payload['secure3d'] = $this->__secure3d;
         }
         if (!empty($this->external_recurring_payment)) {

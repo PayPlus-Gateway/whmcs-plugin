@@ -13,13 +13,14 @@ class PayplusInstance
     public static $DisplayName;
     public static $GatewayName;
     public static $GatewayNameMeta;
-    public static function MetaData() {
+    public static function MetaData()
+    {
         return array(
             'DisplayName' => self::$GatewayNameMeta,
             'APIVersion' => '1.1'
         );
     }
-    
+
     public static function Config()
     {
         return [
@@ -100,7 +101,7 @@ class PayplusInstance
                 'FriendlyName' => 'Charge Token',
                 'Type' => 'yesno',
                 'Description' => 'If you want to charge a deal while making token',
-             ),
+            ),
             'skip-checkout' => array(
                 'FriendlyName' => 'Enable auto submit payment',
                 'Type' => 'yesno',
@@ -109,70 +110,73 @@ class PayplusInstance
             'waiting-message' => array(
                 'FriendlyName' => 'Auto submit payment waiting message',
                 'Type' => 'text',
-                'Default'=>'Please wait, your transaction is being processed...',
+                'Default' => 'Please wait, your transaction is being processed...',
                 'Description' => '',
             )
         ];
     }
-    public  static function updateTblOrders($invoiceId,$status='Active'){
-        if(!empty($status)){
+    public  static function updateTblOrders($invoiceId, $status = 'Active')
+    {
+        if (!empty($status)) {
             $table = "tblorders";
-            $update = array('status'=>$status);
-            $where = array("invoiceid"=>$invoiceId);
-            update_query($table,$update,$where);
+            $update = array('status' => $status);
+            $where = array("invoiceid" => $invoiceId);
+            update_query($table, $update, $where);
         }
     }
-    public  static function updateTblHosting($invoiceId,$status){
-        if(!empty($status)){
+    public  static function updateTblHosting($invoiceId, $status)
+    {
+        if (!empty($status)) {
             $recurring = self::getRecurring($invoiceId);
             $date = new DateTime();
-            $date=$date->modify("+" .$recurring['external_recurring_range'] ." month");
-            $date =$date->format('Y-m-d');
+            $date = $date->modify("+" . $recurring['external_recurring_range'] . " month");
+            $date = $date->format('Y-m-d');
             $table = "tblhosting";
-            $update = array("nextduedate"=>$date,'domainstatus'=>$status);
-            $where = array("id"=>$recurring['external_recurring_id']);
-            update_query($table,$update,$where);
+            $update = array("nextduedate" => $date, 'domainstatus' => $status);
+            $where = array("id" => $recurring['external_recurring_id']);
+            update_query($table, $update, $where);
         }
-
     }
-    public static  function  getOrderId($invoiceId){
+    public static  function  getOrderId($invoiceId)
+    {
         $table = "tblinvoiceitems";
         $fields = "relid";
-        $where = array("invoiceid"=>$invoiceId);
-        $result = select_query($table,$fields,$where);
+        $where = array("invoiceid" => $invoiceId);
+        $result = select_query($table, $fields, $where);
 
-        $orderId=false;
-        while ($row =mysql_fetch_array($result)){
+        $orderId = false;
+        while ($row = mysql_fetch_array($result)) {
 
             $table = "tblhosting";
             $fields = "orderid";
-            $where = array("id"=>$row['relid']);
-            $resultCycle = select_query($table,$fields,$where);
-            $resultCycle =mysql_fetch_array($resultCycle);
-            if(!empty($resultCycle)){
+            $where = array("id" => $row['relid']);
+            $resultCycle = select_query($table, $fields, $where);
+            $resultCycle = mysql_fetch_array($resultCycle);
+            if (!empty($resultCycle)) {
 
                 return $resultCycle['orderid'];
             }
         }
         return $orderId;
     }
-    public static  function  getRecurring($invoiceId){
+    public static  function  getRecurring($invoiceId)
+    {
 
         $table = "tblinvoiceitems";
         $fields = "relid";
-        $where = array("invoiceid"=>$invoiceId);
-        $result = select_query($table,$fields,$where);
+        $where = array("invoiceid" => $invoiceId);
+        $result = select_query($table, $fields, $where);
 
-        $recurring=false;
-        while ($row =mysql_fetch_array($result)){
+        $recurring = false;
+        while ($row = mysql_fetch_array($result)) {
 
             $table = "tblhosting";
             $fields = "id,billingcycle,orderid";
-            $where = array("id"=>$row['relid']);
-            $resultCycle = select_query($table,$fields,$where);
-            $resultCycle =mysql_fetch_array($resultCycle);
+            $where = array("id" => $row['relid']);
+            $resultCycle = select_query($table, $fields, $where);
+            $resultCycle = mysql_fetch_array($resultCycle);
 
-            if(!empty($resultCycle['billingcycle']) && $resultCycle['billingcycle']!=="One Time"){
+            if (!empty($resultCycle['billingcycle']) && $resultCycle['billingcycle'] !== "One Time") {
                 switch ($resultCycle['billingcycle']) {
 
                     case 'Monthly':
@@ -195,24 +199,23 @@ class PayplusInstance
                         break;
                 }
 
-                $recurring =array(
-                    "external_recurring_id"=> $resultCycle['id'],
+                $recurring = array(
+                    "external_recurring_id" => $resultCycle['id'],
                     "external_recurring_charge_id" => $invoiceId,
-                    "external_recurring_type"=>2,
-                    "external_recurring_range"=>$externalRecurringRange
+                    "external_recurring_type" => 2,
+                    "external_recurring_range" => $externalRecurringRange
 
-                    );
+                );
                 return $recurring;
             }
-
         }
         return $recurring;
-
     }
 
-    public static function Capture($params){
+    public static function Capture($params)
+    {
         global $_LANG;
-        $translations = self::getTranslation(substr($_LANG['locale'],0,2));
+        $translations = self::getTranslation(substr($_LANG['locale'], 0, 2));
         PayplusBase::$apiKey = $params['apiKey'];
         PayplusBase::$secretKey = $params['secretKey'];
         PayplusBase::$devMode = ($params['devMode'] == 'on');
@@ -229,13 +232,13 @@ class PayplusInstance
             'amount' => $params['amount'],
             'token' => $params['gatewayid']
         ]);
-    
+
         $numPayments = $_REQUEST['payments'] ?? null;
-        if (ADMINAREA && $numPayments && $numPayments > 1) {
+        if (defined('ADMINAREA') && ADMINAREA && $numPayments && $numPayments > 1) {
             $paymentPage->payments = $numPayments;
         }
-        $recurring =self::getRecurring($params['invoiceid']);
-        if($recurring){
+        $recurring = self::getRecurring($params['invoiceid']);
+        if ($recurring) {
             $paymentPage->set_external_recurring_payment($recurring);
         }
         $total = 0;
@@ -243,26 +246,26 @@ class PayplusInstance
         $taxCalculator = $params['cart']->getTaxCalculator($params['cart']->client);
 
 
-        foreach($params['cart']->getInvoiceModel()->lineItems as $item) {
+        foreach ($params['cart']->getInvoiceModel()->lineItems as $item) {
 
             $itemLine = [
                 'price' => $item->amount,
                 'name' => $item->description,
                 'quantity' => 1
             ];
-            
+
             if (
-                WHMCS\Config\Setting::getValue("TaxEnabled") 
+                WHMCS\Config\Setting::getValue("TaxEnabled")
                 && $item->taxed
                 && !$params['cart']->client->taxExempt
-                ) {
+            ) {
                 $itemLine['price'] = $taxCalculator->setTaxBase($item->amount)->getTotalAfterTaxes();
             }
-    
+
             $paymentPage->AddItem($itemLine);
-            $total+=$itemLine['price'];
+            $total += $itemLine['price'];
         }
-    
+
         $credit = (float)$params['cart']->getInvoiceModel()->getAttribute('credit');
         if ($credit > 0) {
             $itemLine = [
@@ -271,22 +274,22 @@ class PayplusInstance
                 'quantity' => 1
             ];
             $paymentPage->AddItem($itemLine);
-            $total-=$credit;
+            $total -= $credit;
         }
-        
+
         $paramsAmount =  $params['amount'] * 100;
         $totalC =   $total * 100;
         $diff = $paramsAmount - $totalC;
         if (abs($diff) == 1) {
             $paymentPage->AddItem([
-                'price'=>$diff / 100,
-                'quantity'=>1,
-                'name'=> $translations['rounding-difference']
+                'price' => $diff / 100,
+                'quantity' => 1,
+                'name' => $translations['rounding-difference']
             ]);
         }
-    
+
         $customer = [
-            'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
+            'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname'] : $params['clientdetails']['fullname'],
             'email' => $params['clientdetails']['email'],
             'phone' => $params['clientdetails']['phonenumber'],
             'country' => $params['clientdetails']['countrycode'],
@@ -295,11 +298,10 @@ class PayplusInstance
         ];
 
         if ($params['vat_id_field_name']) {
-            $vatNumber =$params['clientdetails'][$params['vat_id_field_name']];
-            if(!empty($vatNumber)){
-                $customer['vat_number']=PayplusBase::getNumberId($vatNumber);
+            $vatNumber = $params['clientdetails'][$params['vat_id_field_name']];
+            if (!empty($vatNumber)) {
+                $customer['vat_number'] = PayplusBase::getNumberId($vatNumber);
             }
-
         }
 
         $paymentPage->SetCustomer($customer);
@@ -310,11 +312,11 @@ class PayplusInstance
         $paymentPage->charge_method = ChargeMethods::CHARGE;
         $payments = $_COOKIE['payments-payplus'];
 
-        if(!empty($payments)){
-           $paymentPage->payments_selected=$payments;
-           $paymentPage->payments=$payments;
-           $sumFirst =$params['amount']/$payments;
-           $paymentPage->payments_first_amount=$sumFirst;
+        if (!empty($payments)) {
+            $paymentPage->payments_selected = $payments;
+            $paymentPage->payments = $payments;
+            $sumFirst = $params['amount'] / $payments;
+            $paymentPage->payments_first_amount = $sumFirst;
             unset($_COOKIE['payments-payplus']);
             setcookie('payments-payplus', '', -1, '/');
         }
@@ -331,28 +333,29 @@ class PayplusInstance
 
         logTransaction('payplusnew', $paymentPage->Response->result, 'declined');
         logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
-            'error'=>$paymentPage->GetErrors(),
-            'payload'=>$paymentPage->GetPayload()        
+            'error' => $paymentPage->GetErrors(),
+            'payload' => $paymentPage->GetPayload()
         ], 'Req user ID...');
         $errors = $paymentPage->GetErrors();
         $html = '';
-        if (in_array('vat-id-not-valid',$errors)) {
-            $html .= '<div>'.$translations['invalid_tax_id'].'</div>';
+        if (in_array('vat-id-not-valid', $errors)) {
+            $html .= '<div>' . $translations['invalid_tax_id'] . '</div>';
         }
 
         WHMCS\Session::set("credit-card-error", $html);
         return [
             'status' => 'declined',
-            'rawdata'=>$paymentPage->GetErrors(),
-            'declinereason'=>$paymentPage->GetErrors()
+            'rawdata' => $paymentPage->GetErrors(),
+            'declinereason' => $paymentPage->GetErrors()
         ];
     }
 
-    public static function RemoteInput($params){
+    public static function RemoteInput($params)
+    {
 
 
         global $_LANG;
-        $translations = self::getTranslation(substr($_LANG['locale'],0,2));
+        $translations = self::getTranslation(substr($_LANG['locale'], 0, 2));
         PayplusBase::$apiKey = $params['apiKey'];
         PayplusBase::$secretKey = $params['secretKey'];
         PayplusBase::$devMode = ($params['devMode'] == 'on');
@@ -362,19 +365,19 @@ class PayplusInstance
         $clientDetails = $params['clientdetails'];
         $paymentPage = new PaymentPage;
         $currencyCode = 'ILS';
-        $chargeToken =($params['charge_token']=="on")?true:false;
+        $chargeToken = ($params['charge_token'] == "on") ? true : false;
 
-        if ($params['clientdetails']['model'] && method_exists($params['clientdetails']['model'],'getCurrencyCodeAttribute')) {
+        if ($params['clientdetails']['model'] && method_exists($params['clientdetails']['model'], 'getCurrencyCodeAttribute')) {
             $currencyCode = $params['clientdetails']['model']->getCurrencyCodeAttribute();
         }
         $paymentPage->Init([
             'payment_page_uid' =>  $params['paymentPageUID'],
             'currency_code' => $currencyCode,
-            'amount' => (!empty($params['amount'] )&& $chargeToken)?$params['amount']:0,
+            'amount' => (!empty($params['amount']) && $chargeToken) ? $params['amount'] : 0,
         ]);
 
         $customer = [
-            'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname']:$params['clientdetails']['fullname'],
+            'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname'] : $params['clientdetails']['fullname'],
             'email' => $params['clientdetails']['email'],
             'phone' => $params['clientdetails']['phonenumber'],
             'country_iso' => $params['clientdetails']['countrycode'],
@@ -383,11 +386,10 @@ class PayplusInstance
         ];
 
         if ($params['vat_id_field_name']) {
-            $vatNumber =$params['clientdetails'][$params['vat_id_field_name']];
-            if(!empty($vatNumber)){
-                $customer['vat_number']=PayplusBase::getNumberId($vatNumber);
+            $vatNumber = $params['clientdetails'][$params['vat_id_field_name']];
+            if (!empty($vatNumber)) {
+                $customer['vat_number'] = PayplusBase::getNumberId($vatNumber);
             }
-
         }
         $paymentPage->SetCustomer($customer);
         $userID = openssl_encrypt($clientDetails['userid'], ENCRYPTION_ALGORITHM, PASSPHRASE);
@@ -397,17 +399,16 @@ class PayplusInstance
         $get['g'] = md5(self::$GatewayName);
         if ($params['invoiceid']) {
             $get['invoiceid'] = $params['invoiceid'];
-
         }
         $paymentPage->charge_method = ChargeMethods::TOKEN;
         //payment invoice
 
-        if($chargeToken && !empty($params['amount'])) {
+        if ($chargeToken && !empty($params['amount'])) {
 
             if ($params['invoiceid']) {
-                $recurring =self::getRecurring($params['invoiceid']);
+                $recurring = self::getRecurring($params['invoiceid']);
 
-                if($recurring){
+                if ($recurring) {
                     $paymentPage->set_external_recurring_payment($recurring);
                 }
             }
@@ -459,12 +460,11 @@ class PayplusInstance
                 ]);
             }
             $paymentPage->charge_method = ChargeMethods::CHARGE;
-
         }
 
 
 
-        if (ADMINAREA === true) {
+        if (defined('ADMINAREA') && ADMINAREA === true) {
             $get['adminarea'] = 1;
         }
         if (!empty($get)) {
@@ -473,7 +473,7 @@ class PayplusInstance
 
         $paymentPage->create_token = true;
 
-    
+
         if ($paymentPage->Go()->IsSuccess()) {
             return '
             <script>
@@ -486,30 +486,31 @@ class PayplusInstance
             $errors = $paymentPage->GetErrors();
             logTransaction('payplusnew', $paymentPage->Response, 'declined');
 
-            $html = '<div style="color:red;">'. $translations['Operation encountered the following error/s'];
+            $html = '<div style="color:red;">' . $translations['Operation encountered the following error/s'];
             $html .= '<ul>';
-            if (in_array('vat-id-not-valid',$errors)) {
-                $html .= '<li>'.$translations['invalid_tax_id'].'</li>';
+            if (in_array('vat-id-not-valid', $errors)) {
+                $html .= '<li>' . $translations['invalid_tax_id'] . '</li>';
             }
-            $html .= '<li>'. $paymentPage->Response->result.'</li>';
+            $html .= '<li>' . $paymentPage->Response->result . '</li>';
             $html .= '</ul>';
             $html .= '</div>';
 
             return $html;
         }
     }
-    public static function Refund($params){
+    public static function Refund($params)
+    {
         PayplusBase::$apiKey = $params['apiKey'];
         PayplusBase::$secretKey = $params['secretKey'];
         PayplusBase::$devMode = ($params['devMode'] == 'on');
-    
+
         $transactionIdToRefund = $params['transid'];
         $refundAmount = $params['amount'];
         $refund = new RefundByTransactionUID;
         $refund->Init([
             'transaction_uid' => $transactionIdToRefund,
             'amount' => $refundAmount,
-    
+
         ]);
         $result  = [];
         if ($refund->Go()->IsSuccess()) {
@@ -525,14 +526,15 @@ class PayplusInstance
         }
         return $result;
     }
-    public static function RemoteStore($params){
+    public static function RemoteStore($params)
+    {
 
 
 
         PayplusBase::$apiKey = $params['apiKey'];
         PayplusBase::$secretKey = $params['secretKey'];
         PayplusBase::$devMode = ($params['devMode'] == 'on');
-    
+
         switch ($params['action']) {
             case REMOTE_STORE_ACTION_DELETE:
                 $removeToken = new Remove;
@@ -544,13 +546,13 @@ class PayplusInstance
                     'status' => 'success'
                 ];
                 break;
-    
+
             case REMOTE_STORE_ACTION_UPDATE:
                 $tokenData = explode(TOKEN_TERMINAL_SEPARATOR, $params['gatewayid']);
                 $tokenUID = $tokenData[0];
                 $updateToken = new Update;
                 $payment = $params['payMethod']->payment;
-    
+
                 $updateToken->Init([
                     'uid' => $tokenUID,
                     'terminal_uid' => $params['terminalUID'],
@@ -564,9 +566,9 @@ class PayplusInstance
                     $payment->save();
                     return [
                         'status' => 'success',
-                        'gatewayid'=>$tokenUID
+                        'gatewayid' => $tokenUID
                     ];
-                }else{
+                } else {
                     logTransaction('payplusnew',  $updateToken->Response, 'Declined');
                 }
                 break;
@@ -577,7 +579,8 @@ class PayplusInstance
         ];
     }
 
-    public static function getTranslation($lang) {
+    public static function getTranslation($lang)
+    {
         $translations = [];
         $translations['coupon-discount'] = 'Coupon discount';
         $translations['rounding-difference'] = 'Rounding difference';
