@@ -3,18 +3,20 @@
 use WHMCS\Database\Capsule;
 function getPaymnetModelus(){
     try {
-        $gatewayParams = getGatewayVariables('payplusnew');
-        return $gatewayParams;
-
-    }catch (\Throwable $th) {
-        try {
-            $gatewayParams = getGatewayVariables('payplus');
+        $gatewayParams = getGatewayVariables('payplus');
+        if (!empty($gatewayParams['type'])) {
             return $gatewayParams;
-        }catch (\Throwable $th) {
-            return  false;
         }
-
+    } catch (\Throwable $th) {
     }
+    try {
+        $gatewayParams = getGatewayVariables('payplusnew');
+        if (!empty($gatewayParams['type'])) {
+            return $gatewayParams;
+        }
+    } catch (\Throwable $th) {
+    }
+    return false;
 }
 function add_payplus_gateway_client_charge_token($var){
 
@@ -26,31 +28,36 @@ function add_payplus_gateway_client_charge_token($var){
         ?>
 
         <script type="text/javascript">
-            window.onload = function(){ //existing-card icheck-button
+            window.onload = function(){
+                if (typeof noAutoSubmit !== 'undefined' && noAutoSubmit) {
+                    return;
+                }
+                const form = document.getElementById("frmPayment");
                 const submitForm = document.querySelector("#frmPayment #btnSubmit");
-                const existingCard =document.querySelector('.existing-card.icheck-button');
+                const existingCard = document.querySelector('.existing-card.icheck-button');
+                const errors = document.querySelector('.gateway-errors');
+                const declined = window.location.search.indexOf('paymentfailed') !== -1;
+                const alreadyTried = sessionStorage.getItem('payplus-autosubmit-' + window.location.pathname);
+                const msg = <?php echo json_encode($gatewayParams['waiting-message'] ?? ''); ?>;
 
-                const msg ='<?php  echo $gatewayParams['waiting-message']?>'
-                if(submitForm && existingCard && existingCard.checked){
-
-
-                    function handleSubmit(){
-                        document.getElementById("frmPayment").submit();
-                    }
-                    document.body.innerHTML +=
-                        "<div class='model-payplus' style ='width:100%;height:100%;z-index:9999;position: fixed;top: 0px;left: 0px;'>"+
-                            "<div style='max-width:800px;width:100%;height:250px;" +
-                                "margin:0px auto;background:#fff;display:flex; justify-content: center; " +
-                                 "align-items: center;position: relative;top:20%;font-size:20px;color:#000;font-weight: bold; ' class='model-payplus-content'>" +
-                                 "<p>"+msg+"</p>" +
-                             "</div>" +
-                        "</div>";
-                    // window.setTimeout(handleSubmit, 1000 );
-                    handleSubmit();
+                if (!form || !submitForm || !existingCard || !existingCard.checked || declined || alreadyTried) {
+                    return;
+                }
+                if (errors && errors.textContent.trim() && !errors.classList.contains('w-hidden')) {
+                    return;
                 }
 
+                sessionStorage.setItem('payplus-autosubmit-' + window.location.pathname, '1');
+                document.body.innerHTML +=
+                    "<div class='model-payplus' style ='width:100%;height:100%;z-index:9999;position: fixed;top: 0px;left: 0px;'>"+
+                        "<div style='max-width:800px;width:100%;height:250px;" +
+                            "margin:0px auto;background:#fff;display:flex; justify-content: center; " +
+                             "align-items: center;position: relative;top:20%;font-size:20px;color:#000;font-weight: bold; ' class='model-payplus-content'>" +
+                             "<p>"+msg+"</p>" +
+                         "</div>" +
+                    "</div>";
+                form.submit();
             }
-
         </script>
         <?php
         $output =ob_get_clean();
@@ -60,7 +67,10 @@ function add_payplus_gateway_client_charge_token($var){
 
 }
 function add_payments_payplus_gateway_client($var){
-    $gatewayParams = getGatewayVariables('payplusnew');
+    $gatewayParams = getPaymnetModelus();
+    if (!$gatewayParams) {
+        return;
+    }
 
     $footer_return = '';
     ob_start();
@@ -69,8 +79,7 @@ function add_payments_payplus_gateway_client($var){
         window.onload = function(){
             const selectElement =document.querySelector('.cc-payment-form .form-group.row');
             const form = document.getElementById("frmPayment");
-            let number_payment ='<?php echo $gatewayParams['number_payment'] ?>';
-            form.submit();
+            let number_payment ='<?php echo (int)($gatewayParams['number_payment'] ?? 3); ?>';
             if(selectElement){
                 let html ="<div class='container'><label class='col-sm-4 text-md-right control-label' for='payments'>Payments:</label><select class='form-control select-inline col-sm-8' style='width: 40%;margin-left: 10px' id='payments-payplus' name='payments-payplus'><option value=''>Select Payment</option>";
                 if(!number_payment){
@@ -106,7 +115,6 @@ function add_payments_payplus_gateway_client($var){
         }
         function getCookie(cname) {
             let name = cname + "=";
-            debugger;
             let decodedCookie = decodeURIComponent(document.cookie);
             let ca = decodedCookie.split(';');
             for(let i = 0; i <ca.length; i++) {
@@ -124,8 +132,7 @@ function add_payments_payplus_gateway_client($var){
     </script>
 
     <?php
-    $output =ob_get_contents();
-    $footer_return = $output;
+    $footer_return = ob_get_clean();
     return $footer_return;
 
 }
@@ -233,5 +240,4 @@ if($gatewayParams && $gatewayParams['enable_payments'] === 'on'){
 
     add_hook('ClientAreaFooterOutput', 100, 'add_payments_payplus_gateway_client');
 	add_hook('AdminAreaFooterOutput', 0, 'add_payments_payplus_gateway');
-	add_hook('AdminAreaClientSummaryPage', 10, 'smartpayplus_hook_AdminAreaClientSummaryPage');
 }

@@ -11,16 +11,26 @@ class Ipn extends PayplusBase{
     public $payment_request_uid;
     public $transaction_uid;
 
+    public function getTransaction()
+    {
+        if (!$this->details) {
+            return null;
+        }
+        if (isset($this->details->transaction) && is_object($this->details->transaction)) {
+            return $this->details->transaction;
+        }
+        return $this->details;
+    }
+
     public function IsSuccess()
     {
-        if ($this->actionPerformed === false
-        || !$this->details
-        || $this->details->status_code != '000'
-        ) {
+        if ($this->actionPerformed === false || !$this->details) {
             return false;
         }
+        $transaction = $this->getTransaction();
+        $statusCode = $transaction->status_code ?? $this->details->status_code ?? null;
 
-        return true;
+        return (string)$statusCode === '000';
     }
 
     protected function GetCommandAndMethod()

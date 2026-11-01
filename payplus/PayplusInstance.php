@@ -1,12 +1,14 @@
 <?php
 
 use PayplusGateway\PayplusApi\ChargeMethods;
+use PayplusGateway\PayplusApi\Ipn;
 use PayplusGateway\PayplusApi\PaymentPage;
 use PayplusGateway\PayplusApi\PayplusBase;
 use PayplusGateway\PayplusApi\RefundByTransactionUID;
 use PayplusGateway\PayplusApi\TokenPay;
 use PayplusGateway\PayplusApi\Tokens\Remove;
 use PayplusGateway\PayplusApi\Tokens\Update;
+use WHMCS\Database\Capsule;
 
 class PayplusInstance
 {
@@ -41,7 +43,7 @@ class PayplusInstance
             'enable_payments' => array(
                 'FriendlyName' => 'Enable payments',
                 'Type' => 'yesno',
-                'Description' => 'Tick to enable payments',
+                'Description' => 'Tick to show an installment selector. Does not auto-submit the payment form.',
             ),
             'number_payment' => array(
                 'FriendlyName' => 'Number of payments',
@@ -100,12 +102,12 @@ class PayplusInstance
             'charge_token' => array(
                 'FriendlyName' => 'Charge Token',
                 'Type' => 'yesno',
-                'Description' => 'If you want to charge a deal while making token',
+                'Description' => 'Kept for compatibility. Invoice payments are always charged. Token-only is used when adding a card with no invoice.',
             ),
             'skip-checkout' => array(
                 'FriendlyName' => 'Enable auto submit payment',
                 'Type' => 'yesno',
-                'Description' => 'Enable auto submit payment (this option skips summary page)',
+                'Description' => 'Auto-submit once when a saved card is selected. Will not retry after a decline.',
             ),
             'waiting-message' => array(
                 'FriendlyName' => 'Auto submit payment waiting message',
@@ -115,27 +117,506 @@ class PayplusInstance
             )
         ];
     }
+
+    public static function initApi(array $params)
+    {
+        PayplusBase::$apiKey = $params['apiKey'];
+        PayplusBase::$secretKey = $params['secretKey'];
+        PayplusBase::$devMode = ($params['devMode'] == 'on');
+        if ($params['devMode'] === 'on' && !empty($params['devurl'])) {
+            PayplusBase::$DEV_ADDRESS = $params['devurl'];
+        }
+    }
+
+    public static function getPassphrase()
+    {
+        if (!empty($GLOBALS['cc_encryption_hash'])) {
+            return $GLOBALS['cc_encryption_hash'];
+        }
+        return PASSPHRASE;
+    }
+
+    public static function encodeMoreInfo($userId, $invoiceId = null)
+    {
+        $payload = json_encode([
+            'u' => $userId !== null ? (string)$userId : '',
+            'i' => $invoiceId !== null && $invoiceId !== '' ? (string)$invoiceId : '',
+        ]);
+        return base64_encode(openssl_encrypt($payload, ENCRYPTION_ALGORITHM, self::getPassphrase()));
+    }
+
+    public static function decodeMoreInfo($moreInfo)
+    {
+        $result = ['userid' => null, 'invoiceid' => null];
+        if ($moreInfo === null || $moreInfo === '') {
+            return $result;
+        }
+        $moreInfo = (string)$moreInfo;
+        if (ctype_digit($moreInfo)) {
+            $result['invoiceid'] = (int)$moreInfo;
+            return $result;
+        }
+
+        $decoded = base64_decode($moreInfo, true);
+        if ($decoded === false) {
+            return $result;
+        }
+
+        $plain = openssl_decrypt($decoded, ENCRYPTION_ALGORITHM, self::getPassphrase());
+        if ($plain === false) {
+            $plain = openssl_decrypt($decoded, ENCRYPTION_ALGORITHM, PASSPHRASE);
+        }
+        if ($plain === false || $plain === '') {
+            return $result;
+        }
+
+        $json = json_decode($plain, true);
+        if (is_array($json)) {
+            if (!empty($json['u']) && ctype_digit((string)$json['u'])) {
+                $result['userid'] = (int)$json['u'];
+            }
+            if (!empty($json['i']) && ctype_digit((string)$json['i'])) {
+                $result['invoiceid'] = (int)$json['i'];
+            }
+            return $result;
+        }
+
+        if (ctype_digit($plain)) {
+            $result['userid'] = (int)$plain;
+        }
+        return $result;
+    }
+
+    public static function parseGatewayInput()
+    {
+        $raw = file_get_contents('php://input');
+        $json = json_decode($raw, true);
+        if (is_array($json) && $json) {
+            if (isset($json['transaction']) && is_array($json['transaction'])) {
+                $json = array_merge($json, $json['transaction']);
+                if (empty($json['transaction_uid']) && !empty($json['uid'])) {
+                    $json['transaction_uid'] = $json['uid'];
+                }
+            }
+            return array_merge($_REQUEST, $json);
+        }
+        return $_REQUEST;
+    }
+
+    public static function verifyTransaction(array $params, $transactionUid = null, $paymentRequestUid = null)
+    {
+        if (empty($transactionUid) && empty($paymentRequestUid)) {
+            return null;
+        }
+        self::initApi($params);
+        $ipn = new Ipn;
+        if (!$ipn->Init([
+            'transaction_uid' => $transactionUid,
+            'payment_request_uid' => $paymentRequestUid,
+        ])) {
+            return null;
+        }
+        $ipn->Go();
+        if (!$ipn->IsSuccess()) {
+            return null;
+        }
+        return $ipn;
+    }
+
+    public static function isApprovedTransaction($transaction)
+    {
+        if (!$transaction) {
+            return false;
+        }
+        $statusCode = isset($transaction->status_code) ? (string)$transaction->status_code : '';
+        $status = isset($transaction->status) ? strtolower((string)$transaction->status) : '';
+        return $statusCode === '000' || $status === 'approved';
+    }
+
+    public static function isChargeTransaction($transaction)
+    {
+        if (!$transaction) {
+            return false;
+        }
+        $type = isset($transaction->type) ? (string)$transaction->type : '';
+        return strcasecmp($type, 'Charge') === 0;
+    }
+
+    public static function transactionExists($transactionId)
+    {
+        if ($transactionId === null || $transactionId === '') {
+            return false;
+        }
+        try {
+            return Capsule::table('tblaccounts')->where('transid', $transactionId)->exists();
+        } catch (\Throwable $e) {
+            $result = select_query('tblaccounts', 'id', ['transid' => $transactionId]);
+            return (bool)mysql_fetch_array($result);
+        }
+    }
+
+    public static function extractCardData($ipn, array $input = [])
+    {
+        $details = $ipn && $ipn->details ? $ipn->details : null;
+        $card = null;
+        if ($details) {
+            if (isset($details->data->card_information)) {
+                $card = $details->data->card_information;
+            } elseif (isset($details->card_information)) {
+                $card = $details->card_information;
+            }
+        }
+
+        $token = $card?->token_uid
+            ?? $card?->token
+            ?? $details?->token_uid
+            ?? ($input['token_uid'] ?? null);
+        $fourDigits = $card?->four_digits ?? ($input['four_digits'] ?? null);
+        $expiryMonth = $card?->expiry_month ?? ($input['expiry_month'] ?? '');
+        $expiryYear = $card?->expiry_year ?? ($input['expiry_year'] ?? '');
+        $issuerId = $card?->issuer_id ?? ($input['issuer_id'] ?? null);
+
+        return [
+            'token_uid' => $token,
+            'four_digits' => $fourDigits,
+            'expiry' => $expiryMonth . $expiryYear,
+            'issuer_id' => $issuerId,
+            'terminal_uid' => $details?->data?->terminal_uid
+                ?? $details?->terminal_uid
+                ?? ($input['terminal_uid'] ?? null),
+        ];
+    }
+
+    public static function amountsMatch($ipnAmount, array $invoice)
+    {
+        if ($ipnAmount === null || $ipnAmount === '') {
+            return true;
+        }
+        $paid = (float)$ipnAmount;
+        $candidates = [];
+        if (isset($invoice['balance']) && $invoice['balance'] !== '') {
+            $candidates[] = (float)$invoice['balance'];
+        }
+        if (isset($invoice['total']) && $invoice['total'] !== '') {
+            $candidates[] = (float)$invoice['total'];
+        }
+        if (isset($invoice['subtotal']) && $invoice['subtotal'] !== '') {
+            $candidates[] = (float)$invoice['subtotal'];
+        }
+        foreach ($candidates as $expected) {
+            if (abs($paid - $expected) <= 0.05) {
+                return true;
+            }
+        }
+        return empty($candidates);
+    }
+
+    public static function applyVerifiedPayment($gatewayModuleName, array $gatewayParams, $transaction, $invoiceId)
+    {
+        if (!$invoiceId || !self::isApprovedTransaction($transaction) || !self::isChargeTransaction($transaction)) {
+            return false;
+        }
+
+        $transactionId = $transaction->uid
+            ?? $transaction->transaction_uid
+            ?? null;
+        if (!$transactionId) {
+            return false;
+        }
+
+        $invoice = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
+        if (empty($invoice['result']) || $invoice['result'] !== 'success') {
+            logTransaction(self::$GatewayName, ['invoiceid' => $invoiceId], 'Invalid Invoice');
+            return false;
+        }
+
+        $amount = $transaction->amount ?? null;
+        if (!self::amountsMatch($amount, $invoice)) {
+            logTransaction(self::$GatewayName, [
+                'invoiceid' => $invoiceId,
+                'ipn_amount' => $amount,
+                'invoice_total' => $invoice['total'] ?? null,
+                'invoice_balance' => $invoice['balance'] ?? null,
+            ], 'Amount Mismatch');
+            return false;
+        }
+
+        if (self::transactionExists($transactionId) || ($invoice['status'] ?? '') === 'Paid') {
+            logTransaction(self::$GatewayName, [
+                'invoiceid' => $invoiceId,
+                'transaction_uid' => $transactionId,
+            ], 'Duplicate');
+            return true;
+        }
+
+        addInvoicePayment(
+            $invoiceId,
+            $transactionId,
+            $amount,
+            0,
+            $gatewayModuleName
+        );
+        logTransaction(self::$GatewayName, json_decode(json_encode($transaction), true), 'Success');
+        return true;
+    }
+
+    public static function saveVerifiedCard($gatewayModuleName, $userId, array $card)
+    {
+        global $cardNames;
+        if (!$userId || empty($card['token_uid'])) {
+            return false;
+        }
+        if (!function_exists('createCardPayMethod')) {
+            return false;
+        }
+        try {
+            if (class_exists('\WHMCS\User\Client')) {
+                $client = \WHMCS\User\Client::find($userId);
+                if ($client) {
+                    foreach ($client->payMethods as $payMethod) {
+                        $payment = $payMethod->payment ?? null;
+                        if (
+                            $payment
+                            && method_exists($payment, 'getRemoteToken')
+                            && $payment->getRemoteToken() === $card['token_uid']
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        $cardName = null;
+        if (!empty($card['issuer_id']) && isset($cardNames[$card['issuer_id']])) {
+            $cardName = $cardNames[$card['issuer_id']];
+        }
+
+        try {
+            $createCardStatus = createCardPayMethod(
+                $userId,
+                $gatewayModuleName,
+                $card['four_digits'] ?? '',
+                $card['expiry'] ?? '',
+                $cardName,
+                null,
+                null,
+                $card['token_uid']
+            );
+            if ($createCardStatus) {
+                logModuleCall($gatewayModuleName, 'saveVerifiedCard', [
+                    'userid' => $userId,
+                    'fourDigits' => $card['four_digits'] ?? null,
+                    'tokenData' => $card['token_uid'],
+                ], 'Created cc token');
+                return true;
+            }
+            logModuleCall($gatewayModuleName, 'saveVerifiedCard', [
+                'userid' => $userId,
+                'tokenData' => $card['token_uid'],
+            ], "Wouldn't create cc token");
+        } catch (\Exception $e) {
+            logModuleCall($gatewayModuleName, 'saveVerifiedCard', [
+                'userid' => $userId,
+                'error' => $e->getMessage(),
+            ], "Wouldn't create cc token");
+        }
+        return false;
+    }
+
+    public static function processNotification($gatewayModuleName, array $gatewayParams, array $input)
+    {
+        $transactionUid = $input['transaction_uid'] ?? null;
+        $paymentRequestUid = $input['payment_request_uid'] ?? $input['page_request_uid'] ?? null;
+
+        $ipn = self::verifyTransaction($gatewayParams, $transactionUid, $paymentRequestUid);
+        if (!$ipn) {
+            logTransaction(self::$GatewayName, $input, 'Unverified');
+            return [
+                'success' => false,
+                'invoiceid' => $input['invoiceid'] ?? null,
+            ];
+        }
+
+        $transaction = $ipn->getTransaction();
+        $moreInfo = $transaction->more_info
+            ?? ($ipn->details->more_info ?? null)
+            ?? ($input['more_info'] ?? '');
+        $meta = self::decodeMoreInfo($moreInfo);
+        $urlInvoiceId = $input['invoiceid'] ?? null;
+        $invoiceId = $meta['invoiceid'] ?: $urlInvoiceId;
+
+        if ($meta['invoiceid'] && $urlInvoiceId && (int)$urlInvoiceId !== (int)$meta['invoiceid']) {
+            logTransaction(self::$GatewayName, [
+                'url_invoiceid' => $urlInvoiceId,
+                'more_info_invoiceid' => $meta['invoiceid'],
+            ], 'Invoice Mismatch');
+            $invoiceId = $meta['invoiceid'];
+        }
+
+        if ($invoiceId && empty($meta['invoiceid'])) {
+            $invoice = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
+            $belongsToUser = $meta['userid']
+                && !empty($invoice['userid'])
+                && (int)$invoice['userid'] === (int)$meta['userid'];
+            if (
+                empty($invoice['result'])
+                || $invoice['result'] !== 'success'
+                || !$belongsToUser
+                || !self::amountsMatch($transaction->amount ?? null, $invoice)
+            ) {
+                $invoiceId = null;
+            }
+        }
+
+        $paid = false;
+        if ($invoiceId) {
+            $paid = self::applyVerifiedPayment($gatewayModuleName, $gatewayParams, $transaction, $invoiceId);
+        }
+
+        $userId = $meta['userid'];
+        if (!$userId && $invoiceId) {
+            $invoice = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
+            if (!empty($invoice['userid'])) {
+                $userId = (int)$invoice['userid'];
+            }
+        }
+
+        $cardSaved = false;
+        if (self::isApprovedTransaction($transaction)) {
+            $card = self::extractCardData($ipn, $input);
+            $cardSaved = self::saveVerifiedCard($gatewayModuleName, $userId, $card);
+        }
+
+        return [
+            'success' => $paid || $cardSaved || self::isApprovedTransaction($transaction),
+            'invoiceid' => $invoiceId,
+            'userid' => $userId,
+        ];
+    }
+
+    public static function addInvoiceItemsToPaymentPage($paymentPage, array $params)
+    {
+        global $_LANG;
+        $translations = self::getTranslation(substr($_LANG['locale'] ?? 'en', 0, 2));
+        $items = [];
+        $credit = 0;
+        $taxCalculator = null;
+        $client = null;
+
+        try {
+            if (!empty($params['cart']) && is_object($params['cart']) && method_exists($params['cart'], 'getInvoiceModel')) {
+                $invoiceModel = $params['cart']->getInvoiceModel();
+                $client = $params['cart']->client ?? null;
+                if ($client && method_exists($params['cart'], 'getTaxCalculator')) {
+                    $taxCalculator = $params['cart']->getTaxCalculator($client);
+                }
+                if ($invoiceModel && !empty($invoiceModel->lineItems)) {
+                    foreach ($invoiceModel->lineItems as $item) {
+                        $items[] = [
+                            'price' => $item->amount,
+                            'name' => $item->description,
+                            'taxed' => !empty($item->taxed),
+                        ];
+                    }
+                }
+                if ($invoiceModel && method_exists($invoiceModel, 'getAttribute')) {
+                    $credit = (float)$invoiceModel->getAttribute('credit');
+                }
+            }
+        } catch (\Throwable $e) {
+            $items = [];
+        }
+
+        if (!$items && !empty($params['invoiceid'])) {
+            try {
+                if (class_exists('\WHMCS\Billing\Invoice')) {
+                    $invoiceModel = \WHMCS\Billing\Invoice::find($params['invoiceid']);
+                    if ($invoiceModel) {
+                        $lineItems = $invoiceModel->items ?? $invoiceModel->lineItems ?? [];
+                        foreach ($lineItems as $item) {
+                            $items[] = [
+                                'price' => $item->amount,
+                                'name' => $item->description,
+                                'taxed' => !empty($item->taxed),
+                            ];
+                        }
+                        $credit = (float)($invoiceModel->credit ?? 0);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $items = [];
+            }
+        }
+
+        if (!$items && !empty($params['invoiceid'])) {
+            $invoice = localAPI('GetInvoice', ['invoiceid' => $params['invoiceid']]);
+            if (!empty($invoice['items']['item']) && is_array($invoice['items']['item'])) {
+                foreach ($invoice['items']['item'] as $item) {
+                    $items[] = [
+                        'price' => $item['amount'],
+                        'name' => $item['description'] ?? 'Item',
+                        'taxed' => !empty($item['taxed']),
+                    ];
+                }
+            }
+            if (isset($invoice['credit'])) {
+                $credit = (float)$invoice['credit'];
+            }
+        }
+
+        $total = 0;
+        foreach ($items as $item) {
+            $itemLine = [
+                'price' => $item['price'],
+                'name' => $item['name'],
+                'quantity' => 1,
+            ];
+            if (
+                $taxCalculator
+                && $client
+                && \WHMCS\Config\Setting::getValue('TaxEnabled')
+                && !empty($item['taxed'])
+                && empty($client->taxExempt)
+            ) {
+                $itemLine['price'] = $taxCalculator->setTaxBase($item['price'])->getTotalAfterTaxes();
+            }
+            $paymentPage->AddItem($itemLine);
+            $total += $itemLine['price'];
+        }
+
+        if ($credit > 0) {
+            $itemLine = [
+                'price' => $credit * -1,
+                'name' => 'Credit',
+                'quantity' => 1,
+            ];
+            $paymentPage->AddItem($itemLine);
+            $total -= $credit;
+        }
+
+        if (!empty($params['amount'])) {
+            $paramsAmount = $params['amount'] * 100;
+            $totalC = $total * 100;
+            $diff = $paramsAmount - $totalC;
+            if (abs($diff) == 1) {
+                $paymentPage->AddItem([
+                    'price' => $diff / 100,
+                    'quantity' => 1,
+                    'name' => $translations['rounding-difference'],
+                ]);
+            }
+        }
+    }
+
     public  static function updateTblOrders($invoiceId, $status = 'Active')
     {
-        if (!empty($status)) {
-            $table = "tblorders";
-            $update = array('status' => $status);
-            $where = array("invoiceid" => $invoiceId);
-            update_query($table, $update, $where);
-        }
+        return;
     }
     public  static function updateTblHosting($invoiceId, $status)
     {
-        if (!empty($status)) {
-            $recurring = self::getRecurring($invoiceId);
-            $date = new DateTime();
-            $date = $date->modify("+" . $recurring['external_recurring_range'] . " month");
-            $date = $date->format('Y-m-d');
-            $table = "tblhosting";
-            $update = array("nextduedate" => $date, 'domainstatus' => $status);
-            $where = array("id" => $recurring['external_recurring_id']);
-            update_query($table, $update, $where);
-        }
+        return;
     }
     public static  function  getOrderId($invoiceId)
     {
@@ -216,12 +697,7 @@ class PayplusInstance
     {
         global $_LANG;
         $translations = self::getTranslation(substr($_LANG['locale'], 0, 2));
-        PayplusBase::$apiKey = $params['apiKey'];
-        PayplusBase::$secretKey = $params['secretKey'];
-        PayplusBase::$devMode = ($params['devMode'] == 'on');
-        if ($params['devMode'] === 'on' && $params['devurl']) {
-            PayplusBase::$DEV_ADDRESS = $params['devurl'];
-        }
+        self::initApi($params);
         $params['gatewayid'] = explode(TOKEN_TERMINAL_SEPARATOR, $params['gatewayid']);
         $params['gatewayid'] = $params['gatewayid'][0];
 
@@ -241,52 +717,7 @@ class PayplusInstance
         if ($recurring) {
             $paymentPage->set_external_recurring_payment($recurring);
         }
-        $total = 0;
-
-        $taxCalculator = $params['cart']->getTaxCalculator($params['cart']->client);
-
-
-        foreach ($params['cart']->getInvoiceModel()->lineItems as $item) {
-
-            $itemLine = [
-                'price' => $item->amount,
-                'name' => $item->description,
-                'quantity' => 1
-            ];
-
-            if (
-                WHMCS\Config\Setting::getValue("TaxEnabled")
-                && $item->taxed
-                && !$params['cart']->client->taxExempt
-            ) {
-                $itemLine['price'] = $taxCalculator->setTaxBase($item->amount)->getTotalAfterTaxes();
-            }
-
-            $paymentPage->AddItem($itemLine);
-            $total += $itemLine['price'];
-        }
-
-        $credit = (float)$params['cart']->getInvoiceModel()->getAttribute('credit');
-        if ($credit > 0) {
-            $itemLine = [
-                'price' => $credit * -1,
-                'name' => 'Credit',
-                'quantity' => 1
-            ];
-            $paymentPage->AddItem($itemLine);
-            $total -= $credit;
-        }
-
-        $paramsAmount =  $params['amount'] * 100;
-        $totalC =   $total * 100;
-        $diff = $paramsAmount - $totalC;
-        if (abs($diff) == 1) {
-            $paymentPage->AddItem([
-                'price' => $diff / 100,
-                'quantity' => 1,
-                'name' => $translations['rounding-difference']
-            ]);
-        }
+        self::addInvoiceItemsToPaymentPage($paymentPage, $params);
 
         $customer = [
             'customer_name' => ($params['clientdetails']['companyname']) ? $params['clientdetails']['companyname'] : $params['clientdetails']['fullname'],
@@ -308,7 +739,10 @@ class PayplusInstance
         if ($params['move_token'] === 'on') {
             $paymentPage->move_token = true;
         }
-        $paymentPage->more_info = $params['invoiceid'];
+        $paymentPage->more_info = self::encodeMoreInfo(
+            $params['clientdetails']['userid'] ?? null,
+            $params['invoiceid']
+        );
         $paymentPage->charge_method = ChargeMethods::CHARGE;
         $payments = $_COOKIE['payments-payplus'];
 
@@ -323,15 +757,18 @@ class PayplusInstance
         $paymentPage->Go();
 
         if ($paymentPage->IsSuccess()) {
-            PayplusInstance::updateTblOrders($params['invoiceid']);
-            logTransaction('payplusnew', $paymentPage->Response, 'Success');
+            $result = $paymentPage->Response->result ?? null;
+            $transId = $result->transaction_uid
+                ?? ($result->transaction->uid ?? null)
+                ?? ($result->number ?? null);
+            logTransaction(self::$GatewayName, $paymentPage->Response, 'Success');
             return [
                 'status' => 'success',
-                'transid' => $paymentPage->Response->result->number
+                'transid' => $transId
             ];
         }
 
-        logTransaction('payplusnew', $paymentPage->Response->result, 'declined');
+        logTransaction(self::$GatewayName, $paymentPage->Response->result ?? $paymentPage->Response, 'declined');
         logModuleCall('payplus', CURRENT_DEBUG_ACTION, [
             'error' => $paymentPage->GetErrors(),
             'payload' => $paymentPage->GetPayload()
@@ -356,16 +793,11 @@ class PayplusInstance
 
         global $_LANG;
         $translations = self::getTranslation(substr($_LANG['locale'], 0, 2));
-        PayplusBase::$apiKey = $params['apiKey'];
-        PayplusBase::$secretKey = $params['secretKey'];
-        PayplusBase::$devMode = ($params['devMode'] == 'on');
-        if ($params['devMode'] === 'on' && $params['devurl']) {
-            PayplusBase::$DEV_ADDRESS = $params['devurl'];
-        }
+        self::initApi($params);
         $clientDetails = $params['clientdetails'];
         $paymentPage = new PaymentPage;
         $currencyCode = 'ILS';
-        $chargeToken = ($params['charge_token'] == "on") ? true : false;
+        $hasInvoiceCharge = !empty($params['invoiceid']) && !empty($params['amount']) && (float)$params['amount'] > 0;
 
         if ($params['clientdetails']['model'] && method_exists($params['clientdetails']['model'], 'getCurrencyCodeAttribute')) {
             $currencyCode = $params['clientdetails']['model']->getCurrencyCodeAttribute();
@@ -373,7 +805,7 @@ class PayplusInstance
         $paymentPage->Init([
             'payment_page_uid' =>  $params['paymentPageUID'],
             'currency_code' => $currencyCode,
-            'amount' => (!empty($params['amount']) && $chargeToken) ? $params['amount'] : 0,
+            'amount' => $hasInvoiceCharge ? $params['amount'] : 0,
         ]);
 
         $customer = [
@@ -392,77 +824,32 @@ class PayplusInstance
             }
         }
         $paymentPage->SetCustomer($customer);
-        $userID = openssl_encrypt($clientDetails['userid'], ENCRYPTION_ALGORITHM, PASSPHRASE);
-        $paymentPage->more_info = base64_encode($userID);
+        $paymentPage->more_info = self::encodeMoreInfo(
+            $clientDetails['userid'] ?? null,
+            $params['invoiceid'] ?? null
+        );
         $get = [];
-        $paymentPage->refURL_success = $params['systemurl'] . 'modules/gateways/payplus/return.php';
+        $systemUrl = rtrim($params['systemurl'], '/') . '/';
+        $paymentPage->refURL_success = $systemUrl . 'modules/gateways/payplus/return.php';
+        $paymentPage->refURL_callback = $systemUrl . 'modules/gateways/callback/' . self::$GatewayName . '.php';
         $get['g'] = md5(self::$GatewayName);
-        if ($params['invoiceid']) {
+        if (!empty($params['invoiceid'])) {
             $get['invoiceid'] = $params['invoiceid'];
+            $failUrl = $systemUrl . 'viewinvoice.php?id=' . urlencode($params['invoiceid']) . '&paymentfailed=1';
+        } else {
+            $failUrl = $systemUrl . 'clientarea.php?action=creditcard';
         }
-        $paymentPage->charge_method = ChargeMethods::TOKEN;
-        //payment invoice
+        $paymentPage->refURL_failure = $failUrl;
+        $paymentPage->refURL_cancel = $failUrl;
+        $paymentPage->charge_method = $hasInvoiceCharge ? ChargeMethods::CHARGE : ChargeMethods::TOKEN;
 
-        if ($chargeToken && !empty($params['amount'])) {
-
-            if ($params['invoiceid']) {
-                $recurring = self::getRecurring($params['invoiceid']);
-
-                if ($recurring) {
-                    $paymentPage->set_external_recurring_payment($recurring);
-                }
+        if ($hasInvoiceCharge) {
+            $recurring = self::getRecurring($params['invoiceid']);
+            if ($recurring) {
+                $paymentPage->set_external_recurring_payment($recurring);
             }
-
-            $total = 0;
-
-            $taxCalculator = $params['cart']->getTaxCalculator($params['cart']->client);
-
-
-            foreach ($params['cart']->getInvoiceModel()->lineItems as $item) {
-
-                $itemLine = [
-                    'price' => $item->amount,
-                    'name' => $item->description,
-                    'quantity' => 1
-                ];
-
-                if (
-                    WHMCS\Config\Setting::getValue("TaxEnabled")
-                    && $item->taxed
-                    && !$params['cart']->client->taxExempt
-                ) {
-                    $itemLine['price'] = $taxCalculator->setTaxBase($item->amount)->getTotalAfterTaxes();
-                }
-
-                $paymentPage->AddItem($itemLine);
-                $total += $itemLine['price'];
-            }
-
-            $credit = (float)$params['cart']->getInvoiceModel()->getAttribute('credit');
-            if ($credit > 0) {
-                $itemLine = [
-                    'price' => $credit * -1,
-                    'name' => 'Credit',
-                    'quantity' => 1
-                ];
-                $paymentPage->AddItem($itemLine);
-                $total -= $credit;
-            }
-
-            $paramsAmount = $params['amount'] * 100;
-            $totalC = $total * 100;
-            $diff = $paramsAmount - $totalC;
-            if (abs($diff) == 1) {
-                $paymentPage->AddItem([
-                    'price' => $diff / 100,
-                    'quantity' => 1,
-                    'name' => $translations['rounding-difference']
-                ]);
-            }
-            $paymentPage->charge_method = ChargeMethods::CHARGE;
+            self::addInvoiceItemsToPaymentPage($paymentPage, $params);
         }
-
-
 
         if (defined('ADMINAREA') && ADMINAREA === true) {
             $get['adminarea'] = 1;
@@ -484,7 +871,7 @@ class PayplusInstance
             </script>';
         } else {
             $errors = $paymentPage->GetErrors();
-            logTransaction('payplusnew', $paymentPage->Response, 'declined');
+            logTransaction(self::$GatewayName, $paymentPage->Response, 'declined');
 
             $html = '<div style="color:red;">' . $translations['Operation encountered the following error/s'];
             $html .= '<ul>';
@@ -500,9 +887,7 @@ class PayplusInstance
     }
     public static function Refund($params)
     {
-        PayplusBase::$apiKey = $params['apiKey'];
-        PayplusBase::$secretKey = $params['secretKey'];
-        PayplusBase::$devMode = ($params['devMode'] == 'on');
+        self::initApi($params);
 
         $transactionIdToRefund = $params['transid'];
         $refundAmount = $params['amount'];
@@ -514,12 +899,12 @@ class PayplusInstance
         ]);
         $result  = [];
         if ($refund->Go()->IsSuccess()) {
-            logTransaction('payplusnew',  $refund->details, 'Success');
+            logTransaction(self::$GatewayName,  $refund->details, 'Success');
             $result['status'] = 'success';
             $result['rawdata'] = '';
             $result['transid'] = $refund->details->uid;
         } else {
-            logTransaction('payplusnew',  $refund->details, 'Declined');
+            logTransaction(self::$GatewayName,  $refund->details, 'Declined');
             $result['status'] = 'error';
             $result['rawdata'] = '';
             $result['transid'] = 0;
@@ -531,11 +916,14 @@ class PayplusInstance
 
 
 
-        PayplusBase::$apiKey = $params['apiKey'];
-        PayplusBase::$secretKey = $params['secretKey'];
-        PayplusBase::$devMode = ($params['devMode'] == 'on');
+        self::initApi($params);
 
         switch ($params['action']) {
+            case REMOTE_STORE_ACTION_CREATE:
+                return [
+                    'status' => 'success',
+                    'gatewayid' => $params['remoteStorageToken'] ?? $params['gatewayid'] ?? '',
+                ];
             case REMOTE_STORE_ACTION_DELETE:
                 $removeToken = new Remove;
                 $removeToken->Init([
@@ -561,7 +949,7 @@ class PayplusInstance
                 ]);
                 $exp = \WHMCS\Carbon::createFromDate($params['cardExpiryYear'], $params['cardExpiryMonth'], 1);
                 if ($updateToken->Go()->IsSuccess()) {
-                    logTransaction('payplusnew',  $updateToken->Response, 'Success');
+                    logTransaction(self::$GatewayName,  $updateToken->Response, 'Success');
                     $payment->setExpiryDate($exp);
                     $payment->save();
                     return [
@@ -569,7 +957,7 @@ class PayplusInstance
                         'gatewayid' => $tokenUID
                     ];
                 } else {
-                    logTransaction('payplusnew',  $updateToken->Response, 'Declined');
+                    logTransaction(self::$GatewayName,  $updateToken->Response, 'Declined');
                 }
                 break;
         }
