@@ -163,9 +163,6 @@ class PayplusInstance
         }
 
         $plain = openssl_decrypt($decoded, ENCRYPTION_ALGORITHM, self::getPassphrase());
-        if ($plain === false) {
-            $plain = openssl_decrypt($decoded, ENCRYPTION_ALGORITHM, PASSPHRASE);
-        }
         if ($plain === false || $plain === '') {
             return $result;
         }
@@ -492,25 +489,102 @@ class PayplusInstance
         ];
     }
 
+    private static function pageRequestKey($pageRequestUid)
+    {
+        $pageRequestUid = (string)$pageRequestUid;
+        if ($pageRequestUid === '' || !preg_match('/^[A-Za-z0-9\-]{8,64}$/', $pageRequestUid)) {
+            return null;
+        }
+        return 'payplus_page_' . $pageRequestUid;
+    }
+
+    public static function rememberPageRequest($pageRequestUid, $userId, $invoiceId = null)
+    {
+        $key = self::pageRequestKey($pageRequestUid);
+        if (!$key || !$userId) {
+            return false;
+        }
+        try {
+            \WHMCS\TransientData::getInstance()->store($key, json_encode([
+                'u' => (int)$userId,
+                'i' => $invoiceId ? (int)$invoiceId : null,
+                't' => null,
+            ]), 3600);
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function recallPageRequest($pageRequestUid)
+    {
+        $key = self::pageRequestKey($pageRequestUid);
+        if (!$key) {
+            return null;
+        }
+        try {
+            $raw = \WHMCS\TransientData::getInstance()->retrieve($key);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        $data = $raw ? json_decode($raw, true) : null;
+        return (is_array($data) && !empty($data['u'])) ? $data : null;
+    }
+
     public static function processUnverifiedReturn($gatewayModuleName, array $input)
     {
-        $meta = self::decodeMoreInfo($input['more_info'] ?? '');
-        $userId = $meta['userid'];
+        $pageRequestUid = $input['page_request_uid'] ?? $input['payment_request_uid'] ?? null;
+        $binding = self::recallPageRequest($pageRequestUid);
         $type = strtolower((string)($input['type'] ?? ''));
         $approved = self::isApprovedTransaction((object)$input);
         $cardSaved = false;
+        $userId = $binding ? (int)$binding['u'] : null;
 
-        if ($type === 'token' && $approved && $userId) {
-            $card = self::extractCardData(null, $input);
-            $cardSaved = self::saveVerifiedCard($gatewayModuleName, $userId, $card);
-            logTransaction(self::$GatewayName, [
-                'userid' => $userId,
-                'saved' => $cardSaved,
-                'page_request_uid' => $input['page_request_uid'] ?? null,
-            ], $cardSaved ? 'Token Saved' : 'Token Not Saved');
-        } else {
+        if (!$binding || $type !== 'token' || !$approved) {
             logTransaction(self::$GatewayName, $input, 'Unverified');
+            return ['success' => false, 'invoiceid' => null, 'userid' => null];
         }
+
+        $card = self::extractCardData(null, $input);
+        if (empty($card['token_uid'])) {
+            logTransaction(self::$GatewayName, ['page_request_uid' => $pageRequestUid], 'Token Missing');
+            return ['success' => false, 'invoiceid' => null, 'userid' => $userId];
+        }
+
+        $meta = self::decodeMoreInfo($input['more_info'] ?? '');
+        if ($meta['userid'] && (int)$meta['userid'] !== $userId) {
+            logTransaction(self::$GatewayName, [
+                'page_request_uid' => $pageRequestUid,
+                'bound_userid' => $userId,
+                'more_info_userid' => $meta['userid'],
+            ], 'Token Client Mismatch');
+            return ['success' => false, 'invoiceid' => null, 'userid' => null];
+        }
+
+        if (!empty($binding['t']) && $binding['t'] !== $card['token_uid']) {
+            logTransaction(self::$GatewayName, [
+                'page_request_uid' => $pageRequestUid,
+            ], 'Token Replaced Rejected');
+            return ['success' => false, 'invoiceid' => null, 'userid' => $userId];
+        }
+
+        $cardSaved = self::saveVerifiedCard($gatewayModuleName, $userId, $card);
+        if ($cardSaved && empty($binding['t'])) {
+            $binding['t'] = $card['token_uid'];
+            try {
+                \WHMCS\TransientData::getInstance()->store(
+                    self::pageRequestKey($pageRequestUid),
+                    json_encode($binding),
+                    3600
+                );
+            } catch (\Throwable $e) {
+            }
+        }
+        logTransaction(self::$GatewayName, [
+            'userid' => $userId,
+            'saved' => $cardSaved,
+            'page_request_uid' => $pageRequestUid,
+        ], $cardSaved ? 'Token Saved' : 'Token Not Saved');
 
         return [
             'success' => $cardSaved,
@@ -885,6 +959,11 @@ class PayplusInstance
 
 
         if ($paymentPage->Go()->IsSuccess()) {
+            self::rememberPageRequest(
+                $paymentPage->page_request_uid ?? null,
+                $clientDetails['userid'] ?? null,
+                $params['invoiceid'] ?? null
+            );
             return '
             <script>
                 var noAutoSubmit = true;
