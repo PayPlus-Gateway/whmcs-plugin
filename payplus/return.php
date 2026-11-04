@@ -32,10 +32,13 @@ define('IS_ADMIN_AREA', ($_REQUEST['adminarea'] ?? '') === '1');
 
 if (IS_ADMIN_AREA === true) {
     $adminPrefix = ($customadminpath) ? $customadminpath : '/admin';
-    redirSystemURL(['userid' => $requestedUserID], $adminPrefix . "/clientssummary.php");
+    if ($requestedUserID) {
+        redirSystemURL(['userid' => $requestedUserID], $adminPrefix . "/clientssummary.php");
+    }
+    redirSystemURL('', $adminPrefix . "/");
 }
 
 if ($invoiceID) {
-    redirSystemURL('', "viewinvoice.php?id=" . $invoiceID);
+    redirSystemURL(['id' => (int)$invoiceID], 'viewinvoice.php');
 }
-redirSystemURL('', "clientarea.php?action=creditcard");
+redirSystemURL(['action' => 'creditcard'], 'clientarea.php');

@@ -432,11 +432,7 @@ class PayplusInstance
 
         $ipn = self::verifyTransaction($gatewayParams, $transactionUid, $paymentRequestUid);
         if (!$ipn) {
-            logTransaction(self::$GatewayName, $input, 'Unverified');
-            return [
-                'success' => false,
-                'invoiceid' => $input['invoiceid'] ?? null,
-            ];
+            return self::processUnverifiedReturn($gatewayModuleName, $input);
         }
 
         $transaction = $ipn->getTransaction();
@@ -492,6 +488,33 @@ class PayplusInstance
         return [
             'success' => $paid || $cardSaved || self::isApprovedTransaction($transaction),
             'invoiceid' => $invoiceId,
+            'userid' => $userId,
+        ];
+    }
+
+    public static function processUnverifiedReturn($gatewayModuleName, array $input)
+    {
+        $meta = self::decodeMoreInfo($input['more_info'] ?? '');
+        $userId = $meta['userid'];
+        $type = strtolower((string)($input['type'] ?? ''));
+        $approved = self::isApprovedTransaction((object)$input);
+        $cardSaved = false;
+
+        if ($type === 'token' && $approved && $userId) {
+            $card = self::extractCardData(null, $input);
+            $cardSaved = self::saveVerifiedCard($gatewayModuleName, $userId, $card);
+            logTransaction(self::$GatewayName, [
+                'userid' => $userId,
+                'saved' => $cardSaved,
+                'page_request_uid' => $input['page_request_uid'] ?? null,
+            ], $cardSaved ? 'Token Saved' : 'Token Not Saved');
+        } else {
+            logTransaction(self::$GatewayName, $input, 'Unverified');
+        }
+
+        return [
+            'success' => $cardSaved,
+            'invoiceid' => null,
             'userid' => $userId,
         ];
     }
